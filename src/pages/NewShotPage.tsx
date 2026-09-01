@@ -8,6 +8,7 @@ export function NewShotPage() {
   const navigate = useNavigate();
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [videoError, setVideoError] = useState<string | null>(null);
+  const [createdShotId, setCreatedShotId] = useState<string | null>(null);
 
   async function handleVideoChange(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0] ?? null;
@@ -24,20 +25,25 @@ export function NewShotPage() {
   }
 
   async function handleSubmit(values: ShotFormValues) {
-    const shot = await createShot({
-      grind_setting: values.grind_setting,
-      dose_g: Number(values.dose_g),
-      yield_g: Number(values.yield_g),
-      pull_time_s: Number(values.pull_time_s),
-      bean_name: values.bean_name || null,
-      roast_date: values.roast_date || null,
-      rating: values.rating ? Number(values.rating) : null,
-      tasting_note: values.tasting_note || null,
-    });
-    if (videoFile) {
-      await uploadShotVideo(shot.id, videoFile);
+    let shotId = createdShotId;
+    if (!shotId) {
+      const shot = await createShot({
+        grind_setting: values.grind_setting,
+        dose_g: Number(values.dose_g),
+        yield_g: Number(values.yield_g),
+        pull_time_s: Number(values.pull_time_s),
+        bean_name: values.bean_name || null,
+        roast_date: values.roast_date || null,
+        rating: values.rating ? Number(values.rating) : null,
+        tasting_note: values.tasting_note || null,
+      });
+      shotId = shot.id;
+      setCreatedShotId(shotId);
     }
-    navigate(`/shots/${shot.id}`);
+    if (videoFile) {
+      await uploadShotVideo(shotId, videoFile);
+    }
+    navigate(`/shots/${shotId}`);
   }
 
   return (
