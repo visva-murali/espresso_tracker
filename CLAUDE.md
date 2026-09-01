@@ -10,7 +10,7 @@ roadmap: `docs/mvp_spec.md`. Full v1 design and rationale:
 
 ## Status
 
-Design locked for v1. Implementation not yet started.
+v1 implemented and deployed.
 
 ## Stack
 

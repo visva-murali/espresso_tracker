@@ -3,7 +3,7 @@
 Elaborates on [`mvp_spec.md`](./mvp_spec.md), resolving its three open questions
 (done criteria, video storage, tech stack) and locking in the v1 architecture.
 
-Status: agreed, not yet implemented.
+Status: agreed and implemented.
 
 ---
 
