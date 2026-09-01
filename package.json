@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.0.1",
   "type": "module",
-  "description": "Tracker for espresso shots — dial-in settings, tasting notes, and results over time.",
+  "description": "Tracker for espresso shots - dial-in settings, tasting notes, and results over time.",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
