@@ -34,7 +34,7 @@ Multi-user from day one - anyone can sign up and get their own private shot log.
 ### Phase 2 - Make the Data Work For You
 Two independent pieces, on a small design-foundation pass first. All decided in a 2026-09-01 planning conversation, reordering CV ahead of the original roadmap (see reasoning below).
 
-**0. Design foundation (bounded, first):** a color palette, typography, spacing scale, and a handful of reusable primitives (button, card, input, page shell), via the `frontend-design` skill. Scoped narrowly to establishing a direction that the two pieces below get built on from day one - not a retrofit of every existing v1 page, which is a separate smaller cleanup later.
+**0. Design foundation (bounded, first):** a color palette, typography, spacing scale, and a handful of reusable primitives (button, card, input, page shell), via the maybe some sort of front-end skill. Scoped narrowly to establishing a direction that the two pieces below get built on from day one - not a retrofit of every existing v1 page, which is a separate smaller cleanup later.
 
 **A. Analytics dashboard:** reads shot data that already exists, no new capability needed. Four views: trend over time (rating/dose/yield/time across all shots), grind setting vs. outcome, per-bean breakdown, and shot-to-shot consistency/variance at nominally "same" settings. Independent of B at the file level (new page, new route, a charting library) - can be built in parallel with B or sequentially, a wall-clock choice not a technical requirement.
 
