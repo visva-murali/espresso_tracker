@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { getShot, deleteShot, type Shot } from '../lib/shots';
+import { getVideoForShot, getVideoPlaybackUrl } from '../lib/videos';
 
 export function ShotDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [shot, setShot] = useState<Shot | null | undefined>(undefined);
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -13,6 +15,14 @@ export function ShotDetailPage() {
     getShot(id)
       .then(setShot)
       .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load shot'));
+  }, [id]);
+
+  useEffect(() => {
+    if (!id) return;
+    getVideoForShot(id).then((video) => {
+      if (!video) return;
+      getVideoPlaybackUrl(video).then(setVideoUrl);
+    });
   }, [id]);
 
   async function handleDelete() {
@@ -30,6 +40,9 @@ export function ShotDetailPage() {
     <div className="max-w-md mx-auto p-4 flex flex-col gap-2">
       <Link to="/">Back to shots</Link>
       <h1 className="text-xl font-semibold">{shot.grind_setting}</h1>
+      {videoUrl && (
+        <video data-testid="pour-video" src={videoUrl} controls className="w-full rounded" />
+      )}
       <dl className="grid grid-cols-2 gap-1">
         <dt>Dose</dt>
         <dd>{shot.dose_g} g</dd>
