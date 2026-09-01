@@ -51,4 +51,18 @@ describe('EditShotPage', () => {
     );
     expect(navigateMock).toHaveBeenCalledWith('/shots/shot-1');
   });
+
+  it('shows an error message when loading the shot fails', async () => {
+    vi.mocked(getShot).mockRejectedValue(new Error('Failed to load shot'));
+
+    render(
+      <MemoryRouter initialEntries={['/shots/shot-1/edit']}>
+        <Routes>
+          <Route path="/shots/:id/edit" element={<EditShotPage />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await waitFor(() => expect(screen.getByText('Failed to load shot')).toBeInTheDocument());
+  });
 });

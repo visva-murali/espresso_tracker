@@ -20,10 +20,13 @@ export function EditShotPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [shot, setShot] = useState<Shot | null | undefined>(undefined);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!id) return;
-    getShot(id).then(setShot);
+    getShot(id)
+      .then(setShot)
+      .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load shot'));
   }, [id]);
 
   async function handleSubmit(values: ShotFormValues) {
@@ -41,6 +44,7 @@ export function EditShotPage() {
     navigate(`/shots/${id}`);
   }
 
+  if (error) return <p className="text-red-600">{error}</p>;
   if (shot === undefined) return <p>Loading...</p>;
   if (shot === null) return <p>Shot not found.</p>;
 
