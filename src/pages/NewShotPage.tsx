@@ -1,9 +1,27 @@
+import { useState, type ChangeEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ShotForm, emptyShotFormValues, type ShotFormValues } from '../components/ShotForm';
 import { createShot } from '../lib/shots';
+import { validateVideoFile, uploadShotVideo } from '../lib/videos';
 
 export function NewShotPage() {
   const navigate = useNavigate();
+  const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [videoError, setVideoError] = useState<string | null>(null);
+
+  async function handleVideoChange(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0] ?? null;
+    setVideoError(null);
+    setVideoFile(null);
+    if (!file) return;
+
+    const result = await validateVideoFile(file);
+    if (!result.valid) {
+      setVideoError(result.reason);
+      return;
+    }
+    setVideoFile(file);
+  }
 
   async function handleSubmit(values: ShotFormValues) {
     const shot = await createShot({
@@ -16,12 +34,20 @@ export function NewShotPage() {
       rating: values.rating ? Number(values.rating) : null,
       tasting_note: values.tasting_note || null,
     });
+    if (videoFile) {
+      await uploadShotVideo(shot.id, videoFile);
+    }
     navigate(`/shots/${shot.id}`);
   }
 
   return (
     <div>
       <h1 className="text-xl font-semibold text-center mt-4">Log a shot</h1>
+      <div className="max-w-md mx-auto px-4 flex flex-col gap-1">
+        <label htmlFor="video-input">Pour video (optional)</label>
+        <input id="video-input" type="file" accept="video/*" onChange={handleVideoChange} />
+        {videoError && <p className="text-red-600">{videoError}</p>}
+      </div>
       <ShotForm initialValues={emptyShotFormValues} submitLabel="Save shot" onSubmit={handleSubmit} />
     </div>
   );
