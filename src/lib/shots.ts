@@ -1,4 +1,5 @@
 import { supabase } from './supabaseClient';
+import { getVideoForShot, VIDEO_BUCKET } from './videos';
 
 export type Shot = {
   id: string;
@@ -68,6 +69,13 @@ export async function updateShot(id: string, input: UpdateShotInput): Promise<Sh
 }
 
 export async function deleteShot(id: string): Promise<void> {
+  const video = await getVideoForShot(id);
+  if (video) {
+    const { error: storageError } = await supabase.storage
+      .from(VIDEO_BUCKET)
+      .remove([video.storage_key]);
+    if (storageError) throw storageError;
+  }
   const { error } = await supabase.from('shots').delete().eq('id', id);
   if (error) throw error;
 }

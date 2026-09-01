@@ -1,7 +1,18 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { createClient } from '@supabase/supabase-js';
+import { File as NodeFile } from 'node:buffer';
 import { supabase } from './supabaseClient';
 import { createShot, listShots, getShot, updateShot, deleteShot } from './shots';
+import { uploadShotVideo, VIDEO_BUCKET } from './videos';
+
+// Built with Node's native File (from node:buffer) rather than jsdom's global
+// File. jsdom's File/FormData classes are not the ones the real fetch
+// implementation recognizes, so a real network upload through jsdom's File
+// hangs in this test environment. The uploaded bytes and shape are the same
+// as a browser File; only the constructor used in this test differs.
+function makeVideoFile(sizeBytes: number, name = 'pour.mp4', type = 'video/mp4'): File {
+  return new NodeFile([new Uint8Array(sizeBytes)], name, { type }) as unknown as File;
+}
 
 const LOCAL_URL = 'http://127.0.0.1:54321';
 const TEST_EMAIL = `shots-crud-${Date.now()}@test.local`;
@@ -62,5 +73,18 @@ describe('shots data access', () => {
     await deleteShot(created.id);
     const fetched = await getShot(created.id);
     expect(fetched).toBeNull();
+  });
+
+  it('removes the video storage object when its shot is deleted', async () => {
+    const created = await createShot({ grind_setting: '18', dose_g: 18, yield_g: 36, pull_time_s: 28 });
+    const video = await uploadShotVideo(created.id, makeVideoFile(1024));
+
+    await deleteShot(created.id);
+
+    const folder = video.storage_key.substring(0, video.storage_key.lastIndexOf('/'));
+    const fileName = video.storage_key.substring(video.storage_key.lastIndexOf('/') + 1);
+    const { data: remaining, error } = await supabase.storage.from(VIDEO_BUCKET).list(folder);
+    expect(error).toBeNull();
+    expect(remaining?.some((f) => f.name === fileName)).toBe(false);
   });
 });
