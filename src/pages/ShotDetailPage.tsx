@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { getShot, type Shot } from '../lib/shots';
+import { useParams, useNavigate, Link } from 'react-router-dom';
+import { getShot, deleteShot, type Shot } from '../lib/shots';
 
 export function ShotDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [shot, setShot] = useState<Shot | null | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
 
@@ -13,6 +14,13 @@ export function ShotDetailPage() {
       .then(setShot)
       .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load shot'));
   }, [id]);
+
+  async function handleDelete() {
+    if (!id) return;
+    if (!window.confirm('Delete this shot? This cannot be undone.')) return;
+    await deleteShot(id);
+    navigate('/');
+  }
 
   if (error) return <p className="text-red-600">{error}</p>;
   if (shot === undefined) return <p>Loading...</p>;
@@ -54,6 +62,14 @@ export function ShotDetailPage() {
           </>
         )}
       </dl>
+      <div className="flex gap-2 mt-2">
+        <Link to={`/shots/${id}/edit`} className="border rounded px-3 py-1">
+          Edit
+        </Link>
+        <button onClick={handleDelete} className="text-red-600 border rounded px-3 py-1">
+          Delete
+        </button>
+      </div>
     </div>
   );
 }

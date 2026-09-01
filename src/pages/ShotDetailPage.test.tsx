@@ -1,10 +1,16 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { ShotDetailPage } from './ShotDetailPage';
-import { getShot } from '../lib/shots';
+import { getShot, deleteShot } from '../lib/shots';
 
-vi.mock('../lib/shots', () => ({ getShot: vi.fn() }));
+vi.mock('../lib/shots', () => ({ getShot: vi.fn(), deleteShot: vi.fn() }));
+
+const navigateMock = vi.fn();
+vi.mock('react-router-dom', async () => {
+  const actual = await vi.importActual('react-router-dom');
+  return { ...actual, useNavigate: () => navigateMock };
+});
 
 function renderAtShot(id: string) {
   return render(
@@ -46,5 +52,32 @@ describe('ShotDetailPage', () => {
     renderAtShot('missing');
 
     await waitFor(() => expect(screen.getByText(/shot not found/i)).toBeInTheDocument());
+  });
+
+  it('deletes the shot after confirmation and navigates to the list', async () => {
+    vi.mocked(getShot).mockResolvedValue({
+      id: 'shot-1',
+      user_id: 'user-1',
+      grind_setting: '18',
+      dose_g: 18,
+      yield_g: 36,
+      pull_time_s: 28,
+      bean_name: null,
+      roast_date: null,
+      rating: null,
+      tasting_note: null,
+      created_at: '2026-01-01T00:00:00Z',
+      updated_at: '2026-01-01T00:00:00Z',
+    });
+    vi.mocked(deleteShot).mockResolvedValue(undefined);
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+
+    renderAtShot('shot-1');
+
+    await waitFor(() => expect(screen.getByRole('button', { name: /delete/i })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: /delete/i }));
+
+    await waitFor(() => expect(deleteShot).toHaveBeenCalledWith('shot-1'));
+    expect(navigateMock).toHaveBeenCalledWith('/');
   });
 });
