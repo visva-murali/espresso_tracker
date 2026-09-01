@@ -369,7 +369,7 @@ import { describe, it, expect } from 'vitest';
 import { createClient } from '@supabase/supabase-js';
 
 const LOCAL_URL = 'http://127.0.0.1:54321';
-const ANON_KEY = process.env.SUPABASE_LOCAL_ANON_KEY ?? import.meta.env.VITE_SUPABASE_ANON_KEY;
+const ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_LOCAL_SERVICE_ROLE_KEY!;
 
 async function createTestUserClient(email: string) {
