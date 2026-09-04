@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="classical/styles.css">
+<style>
+  body { margin: 0; }
+  .num { font-feature-settings: 'tnum' 1; font-variant-numeric: tabular-nums; }
+  .fig { font-family: var(--font-body); font-weight: 600; font-feature-settings: 'tnum' 1; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+  .screen { scrollbar-width: none; }
+  .screen::-webkit-scrollbar { display: none; }
+</style>
+</helmet>
+
+<div style="background: var(--color-bg); color: var(--color-text); font-family: var(--font-body); min-height: 100vh; padding: 56px 40px 96px;">
+<div style="max-width: 1280px; margin: 0 auto; display: flex; flex-direction: column; gap: 72px;">
+
+  <header style="display: flex; flex-direction: column; gap: var(--space-4);">
+    <div style="font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--color-accent);">Espresso Tracker · Front-end schema v1</div>
+    <h1 style="font-family: var(--font-heading); font-weight: 400; font-size: 64px; line-height: 1.04; letter-spacing: -0.02em; margin: 0; max-width: 15ch;">A house style for logging shots</h1>
+    <p style="max-width: 62ch; font-size: 16px; line-height: 1.65; margin: 0; opacity: 0.85; text-wrap: pretty;">Mobile-first, bean-first, duplicate-and-nudge. Everything below is the contract: tokens, the parts they compose into, the rules that govern layout, and four screens built only from those parts. Build new screens by assembling this vocabulary, not by inventing next to it.</p>
+    <div style="display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-2);">
+      <span class="tag tag-neutral">React + Vite SPA</span>
+      <span class="tag tag-neutral">Supabase · shots + videos</span>
+      <span class="tag tag-neutral">390pt reference width</span>
+      <span class="tag tag-outline">Classical type system</span>
+    </div>
+  </header>
+
+  <section style="display: flex; flex-direction: column; gap: var(--space-4);">
+    <div style="display: flex; align-items: baseline; gap: var(--space-3); border-bottom: 1px solid var(--color-divider); padding-bottom: var(--space-3);">
+      <h2 style="font-family: var(--font-heading); font-weight: 400; font-size: 34px; margin: 0;">01 &nbsp;Principles</h2>
+      <span style="font-size: 12px; opacity: 0.55;">Four rules that settle most arguments</span>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--color-divider);">
+      <div style="background: var(--color-bg); padding: var(--space-4) var(--space-4) var(--space-6) 0;">
+        <div style="font-family: var(--font-heading); font-size: 21px; margin-bottom: var(--space-2);">The number is the interface</div>
+        <p style="font-size: 13.5px; line-height: 1.6; opacity: 0.8; margin: 0;">Ratio and pull time are the two figures a shot is judged by. They set at display size, tabular, unlabelled where context is obvious. Everything else is supporting metadata at 13px.</p>
+      </div>
+      <div style="background: var(--color-bg); padding: var(--space-4);">
+        <div style="font-family: var(--font-heading); font-size: 21px; margin-bottom: var(--space-2);">Change, not entry</div>
+        <p style="font-size: 13.5px; line-height: 1.6; opacity: 0.8; margin: 0;">A new shot starts as a copy of the bag's reference shot. The UI's job is to show what moved: every nudged field carries a delta mark. Empty forms are the exception, not the default.</p>
+      </div>
+      <div style="background: var(--color-bg); padding: var(--space-4);">
+        <div style="font-family: var(--font-heading); font-size: 21px; margin-bottom: var(--space-2);">The bag is the unit</div>
+        <p style="font-size: 13.5px; line-height: 1.6; opacity: 0.8; margin: 0;">Shots are never a flat feed. They nest under a bag heading that carries roast age and dial-in state, so a row only has to state what differs from its siblings.</p>
+      </div>
+      <div style="background: var(--color-bg); padding: var(--space-4);">
+        <div style="font-family: var(--font-heading); font-size: 21px; margin-bottom: var(--space-2);">Drawn, not filled</div>
+        <p style="font-size: 13.5px; line-height: 1.6; opacity: 0.8; margin: 0;">Structure comes from hairlines and outlines. Gold is a stroke and a small mark, never a block of colour. No card gets a fill, no button gets a solid.</p>
+      </div>
+    </div>
+  </section>
+
+  <section style="display: flex; flex-direction: column; gap: var(--space-6);">
+    <div style="display: flex; align-items: baseline; gap: var(--space-3); border-bottom: 1px solid var(--color-divider); padding-bottom: var(--space-3);">
+      <h2 style="font-family: var(--font-heading); font-weight: 400; font-size: 34px; margin: 0;">02 &nbsp;Foundations</h2>
+      <span style="font-size: 12px; opacity: 0.55;">Tokens, and what each one means in this app</span>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-8);">
+      <div style="display: flex; flex-direction: column; gap: var(--space-3);">
+        <h6 style="margin: 0; color: var(--color-accent);">Colour roles</h6>
+        <div style="display: flex; flex-direction: column;">
+          <div style="display: grid; grid-template-columns: 44px 1fr 96px; align-items: center; gap: var(--space-3); padding: var(--space-2) 0; border-bottom: 1px solid var(--color-divider);">
+            <div style="height: 30px; border-radius: var(--radius-sm); background: var(--color-bg); border: 1px solid var(--color-divider);"></div>
+            <div style="font-size: 13px;">Ground — every screen, no exceptions</div>
+            <div class="num" style="font-size: 11.5px; opacity: 0.55;">--color-bg</div>
+          </div>
+          <div style="display: grid; grid-template-columns: 44px 1fr 96px; align-items: center; gap: var(--space-3); padding: var(--space-2) 0; border-bottom: 1px solid var(--color-divider);">
+            <div style="height: 30px; border-radius: var(--radius-sm); background: var(--color-surface); border: 1px solid var(--color-divider);"></div>
+            <div style="font-size: 13px;">Surface — video mats, sheets, dialogs</div>
+            <div class="num" style="font-size: 11.5px; opacity: 0.55;">--color-surface</div>
+          </div>
+          <div style="display: grid; grid-template-columns: 44px 1fr 96px; align-items: center; gap: var(--space-3); padding: var(--space-2) 0; border-bottom: 1px solid var(--color-divider);">
+            <div style="height: 30px; border-radius: var(--radius-sm); background: var(--color-accent);"></div>
+            <div style="font-size: 13px;">Accent — actions, deltas, the dial-in mark</div>
+            <div class="num" style="font-size: 11.5px; opacity: 0.55;">--color-accent</div>
+          </div>
+          <div style="display: grid; grid-template-columns: 44px 1fr 96px; align-items: center; gap: var(--space-3); padding: var(--space-2) 0; border-bottom: 1px solid var(--color-divider);">
+            <div style="height: 30px; border-radius: var(--radius-sm); background: var(--color-accent-700);"></div>
+            <div style="font-size: 13px;">Accent 700 — accent text at body size, sparingly</div>
+            <div class="num" style="font-size: 11.5px; opacity: 0.55;">--color-accent-700</div>
+          </div>
+          <div style="display: grid; grid-template-columns: 44px 1fr 96px; align-items: center; gap: var(--space-3); padding: var(--space-2) 0; border-bottom: 1px solid var(--color-divider);">
+            <div style="height: 30px; border-radius: var(--radius-sm); background: var(--color-neutral-900);"></div>
+            <div style="font-size: 13px;">Neutral 900 — the video mat and its chrome</div>
+            <div class="num" style="font-size: 11.5px; opacity: 0.55;">--color-neutral-900</div>
+          </div>
+        </div>
+        <p style="font-size: 12.5px; line-height: 1.6; opacity: 0.7; margin: var(--space-2) 0 0;">No red/green quality scale. A shot that pulled fast is stated as a number and a delta, not coloured as an error — the app has no opinion about your taste. Destructive actions are the only place the ramp is left behind, and they use text weight and a confirm step instead of a colour.</p>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: var(--space-3);">
+        <h6 style="margin: 0; color: var(--color-accent);">Type, as used here</h6>
+        <div style="display: grid; grid-template-columns: 1fr 150px; align-items: baseline; gap: var(--space-3); padding: var(--space-2) 0; border-bottom: 1px solid var(--color-divider);">
+          <div class="fig" style="font-size: 44px; line-height: 1.05;"><span class="fig" style="font-size: 27px; font-weight: 400; color: var(--color-neutral-700);">1:</span>2.31</div>
+          <div style="font-size: 11.5px; opacity: 0.6; line-height: 1.5;">Figure XL · Lora 600 / 44 · tnum<br>Shot detail hero only</div>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 150px; align-items: baseline; gap: var(--space-3); padding: var(--space-2) 0; border-bottom: 1px solid var(--color-divider);">
+          <div style="display: flex; align-items: baseline; gap: 14px;"><div class="fig" style="font-size: 24px; line-height: 1.15;"><span class="fig" style="font-size: 16px; font-weight: 400; color: var(--color-neutral-700);">1:</span>2.31</div><div class="fig" style="font-size: 16px; line-height: 1.15; color: var(--color-neutral-700);">28<span style="font-size: 12.5px; font-weight: 400;">s</span></div></div>
+          <div style="font-size: 11.5px; opacity: 0.6; line-height: 1.5;">Figure L · Lora 600 / 24 · tnum<br>Shot rows; the 1: sets 16px neutral-700</div>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 150px; align-items: baseline; gap: var(--space-3); padding: var(--space-2) 0; border-bottom: 1px solid var(--color-divider);">
+          <div style="font-family: var(--font-heading); font-weight: 600; font-size: 19px;">Kenya Nyeri AA</div>
+          <div style="font-size: 11.5px; opacity: 0.6; line-height: 1.5;">Title · Cormorant 600 / 19<br>Bag headings, screen titles</div>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 150px; align-items: baseline; gap: var(--space-3); padding: var(--space-2) 0; border-bottom: 1px solid var(--color-divider);">
+          <div style="font-size: 14px;">18.0 g in, ground at 4.2 on the Niche</div>
+          <div style="font-size: 11.5px; opacity: 0.6; line-height: 1.5;">Body · Lora 400 / 14 · 1.55<br>Metadata, notes, field values</div>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 150px; align-items: baseline; gap: var(--space-3); padding: var(--space-2) 0; border-bottom: 1px solid var(--color-divider);">
+          <div style="font-size: 11px; letter-spacing: 0.09em; text-transform: uppercase; opacity: 0.6;">Roasted 12 days ago</div>
+          <div style="font-size: 11.5px; opacity: 0.6; line-height: 1.5;">Micro · Lora 400 / 11 · 0.09em<br>Kickers, labels, chart axes</div>
+        </div>
+        <p style="font-size: 12.5px; line-height: 1.6; opacity: 0.7; margin: var(--space-2) 0 0;">Figures break the system's usual heading rule on purpose: Cormorant's numerals are too fine and too small on the body to read at arm's length on a wet counter, so every changing figure sets in Lora semibold, tabular, at full text colour. Cormorant keeps the words — titles, notes, section heads. Nothing goes bolder than semibold.</p>
+      </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-8);">
+      <div style="display: flex; flex-direction: column; gap: var(--space-3);">
+        <h6 style="margin: 0; color: var(--color-accent);">Space and touch</h6>
+        <div style="display: flex; align-items: flex-end; gap: var(--space-3);">
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 6px;"><div style="width: 4.6px; height: 34px; background: var(--color-accent-300);"></div><span class="num" style="font-size: 10px; opacity: 0.6;">1</span></div>
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 6px;"><div style="width: 9.2px; height: 34px; background: var(--color-accent-300);"></div><span class="num" style="font-size: 10px; opacity: 0.6;">2</span></div>
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 6px;"><div style="width: 13.8px; height: 34px; background: var(--color-accent-300);"></div><span class="num" style="font-size: 10px; opacity: 0.6;">3</span></div>
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 6px;"><div style="width: 18.4px; height: 34px; background: var(--color-accent-300);"></div><span class="num" style="font-size: 10px; opacity: 0.6;">4</span></div>
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 6px;"><div style="width: 27.6px; height: 34px; background: var(--color-accent-300);"></div><span class="num" style="font-size: 10px; opacity: 0.6;">6</span></div>
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 6px;"><div style="width: 36.8px; height: 34px; background: var(--color-accent-300);"></div><span class="num" style="font-size: 10px; opacity: 0.6;">8</span></div>
+        </div>
+        <ul style="margin: var(--space-2) 0 0; padding-left: 18px; font-size: 13px; line-height: 1.7; opacity: 0.85;">
+          <li>Screen gutter is <span class="num">--space-4</span> (18px). Nothing touches the edge except hairlines and the video plate.</li>
+          <li>Vertical rhythm between blocks is <span class="num">--space-6</span>; inside a block, <span class="num">--space-2</span>.</li>
+          <li>Any control you press while holding a portafilter is 48px minimum, 56px for the steppers. Rows are 64px.</li>
+          <li>The bottom action bar reserves 88px plus safe-area inset; list content pads by that much so the last row clears it.</li>
+        </ul>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: var(--space-3);">
+        <h6 style="margin: 0; color: var(--color-accent);">Notation</h6>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3);">
+          <div style="border: 1px solid var(--color-divider); border-radius: var(--radius-md); padding: var(--space-3);">
+            <div class="fig" style="font-size: 23px;"><span class="fig" style="font-size: 16px; font-weight: 400; color: var(--color-neutral-700);">1:</span>2.31</div>
+            <div style="font-size: 12px; opacity: 0.7; margin-top: 4px;">Ratio, two decimals. The <span class="num">1:</span> is constant, so it sets smaller and in neutral-700 — only the varying part is a figure.</div>
+          </div>
+          <div style="border: 1px solid var(--color-divider); border-radius: var(--radius-md); padding: var(--space-3);">
+            <div class="fig" style="font-size: 23px;">28s</div>
+            <div style="font-size: 12px; opacity: 0.7; margin-top: 4px;">Time, whole seconds, unit set tight with no space.</div>
+          </div>
+          <div style="border: 1px solid var(--color-divider); border-radius: var(--radius-md); padding: var(--space-3);">
+            <div class="fig" style="font-size: 23px;">18.0 g</div>
+            <div style="font-size: 12px; opacity: 0.7; margin-top: 4px;">Mass, one decimal, hair space before the unit.</div>
+          </div>
+          <div style="border: 1px solid var(--color-divider); border-radius: var(--radius-md); padding: var(--space-3);">
+            <div class="fig" style="font-size: 23px;">12 d</div>
+            <div style="font-size: 12px; opacity: 0.7; margin-top: 4px;">Roast age in days from <span class="num">roast_date</span>, never a date.</div>
+          </div>
+        </div>
+        <p style="font-size: 12.5px; line-height: 1.6; opacity: 0.7; margin: var(--space-2) 0 0;">Grind is free text in the schema and stays free text in the UI — render it verbatim, right-aligned, and never coerce it to a number. Deltas are the one place a sign is shown: <span class="num" style="color: var(--color-accent-700);">+0.2</span> and <span class="num" style="color: var(--color-accent-700);">−2s</span> read as adjustments, not as good or bad. Gold on a figure always means "this is what moved".</p>
+      </div>
+    </div>
+  </section>
+
+  <section style="display: flex; flex-direction: column; gap: var(--space-6);">
+    <div style="display: flex; align-items: baseline; gap: var(--space-3); border-bottom: 1px solid var(--color-divider); padding-bottom: var(--space-3);">
+      <h2 style="font-family: var(--font-heading); font-weight: 400; font-size: 34px; margin: 0;">03 &nbsp;Components</h2>
+      <span style="font-size: 12px; opacity: 0.55;">Shown at real size — 390pt column width</span>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 390px 1fr; gap: var(--space-8); align-items: start; padding-bottom: var(--space-6); border-bottom: 1px solid var(--color-divider);">
+      <div style="border: 1px solid var(--color-divider); border-radius: var(--radius-md); padding: var(--space-4); background: var(--color-bg);">
+        <div style="display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-2);">
+          <div>
+            <div style="font-family: var(--font-heading); font-weight: 600; font-size: 19px;">Kenya Nyeri AA</div>
+            <div class="num" style="font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.55; margin-top: 3px;">Sey · 12 d · 8 shots</div>
+          </div>
+          <span class="tag tag-outline">Dialed</span>
+        </div>
+      </div>
+      <div>
+        <div style="font-family: var(--font-heading); font-size: 22px; margin-bottom: var(--space-2);">Bag heading</div>
+        <p style="font-size: 13.5px; line-height: 1.65; opacity: 0.85; margin: 0 0 var(--space-3); max-width: 62ch;">The group header for every list of shots. Grouped client-side on <span class="num">bean_name</span> + <span class="num">roast_date</span> — there is no bags table in v1 and this schema does not require one. Design it as if it becomes an entity: the heading is already the tappable target that a future bag screen hangs off.</p>
+        <div style="display: flex; gap: var(--space-2); flex-wrap: wrap;">
+          <span class="tag tag-outline">Dialed</span>
+          <span class="tag tag-accent">Dialing</span>
+          <span class="tag tag-neutral">Resting</span>
+          <span class="tag tag-neutral">Past peak</span>
+        </div>
+        <p style="font-size: 12.5px; line-height: 1.65; opacity: 0.7; margin: var(--space-3) 0 0; max-width: 62ch;">State is derived, never stored: <em>dialing</em> until two consecutive shots land within 0.15 ratio and 2s of each other, <em>dialed</em> after, <em>resting</em> under 4 days off roast, <em>past peak</em> over 28. If a bag has one shot it carries no tag at all rather than a guess.</p>
+      </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 390px 1fr; gap: var(--space-8); align-items: start; padding-bottom: var(--space-6); border-bottom: 1px solid var(--color-divider);">
+      <div style="border: 1px solid var(--color-divider); border-radius: var(--radius-md); background: var(--color-bg);">
+        <div style="display: grid; grid-template-columns: 1fr auto; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-4); min-height: 64px; border-bottom: 1px solid var(--color-divider);">
+          <div>
+            <div style="display: flex; align-items: baseline; gap: 14px;"><div class="fig" style="font-size: 24px; line-height: 1.15;"><span class="fig" style="font-size: 16px; font-weight: 400; color: var(--color-neutral-700);">1:</span>2.31</div><div class="fig" style="font-size: 16px; line-height: 1.15; color: var(--color-neutral-700);">28<span style="font-size: 12.5px; font-weight: 400;">s</span></div></div>
+            <div class="num" style="font-size: 12.5px; color: var(--color-neutral-700);">18.0 → 41.5 g · grind 4.2</div>
+          </div>
+          <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
+            <div style="display: flex; gap: 2px;">
+              <span style="width: 7px; height: 7px; border-radius: 50%; background: var(--color-accent);"></span>
+              <span style="width: 7px; height: 7px; border-radius: 50%; background: var(--color-accent);"></span>
+              <span style="width: 7px; height: 7px; border-radius: 50%; background: var(--color-accent);"></span>
+              <span style="width: 7px; height: 7px; border-radius: 50%; border: 1px solid var(--color-neutral-400);"></span>
+              <span style="width: 7px; height: 7px; border-radius: 50%; border: 1px solid var(--color-neutral-400);"></span>
+            </div>
+            <div class="num" style="font-size: 11px; opacity: 0.5;">Tue 07:42</div>
+          </div>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr auto; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-4); min-height: 64px;">
+          <div>
+            <div style="display: flex; align-items: baseline; gap: 14px;"><div class="fig" style="font-size: 24px; line-height: 1.15;"><span class="fig" style="font-size: 16px; font-weight: 400; color: var(--color-neutral-700);">1:</span>2.08</div><div class="fig" style="font-size: 16px; line-height: 1.15; color: var(--color-neutral-700);">24<span style="font-size: 12.5px; font-weight: 400;">s</span></div></div>
+            <div class="num" style="font-size: 12.5px; color: var(--color-neutral-700);">18.0 → 37.4 g · grind 4.4 <span style="color: var(--color-accent-700);">+0.2</span></div>
+          </div>
+          <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m22 8-6 4 6 4V8Z"></path><rect width="14" height="12" x="2" y="6" rx="2"></rect></svg>
+            <div class="num" style="font-size: 11px; opacity: 0.5;">Mon 08:10</div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div style="font-family: var(--font-heading); font-size: 22px; margin-bottom: var(--space-2);">Shot row</div>
+        <p style="font-size: 13.5px; line-height: 1.65; opacity: 0.85; margin: 0 0 var(--space-3); max-width: 62ch;">64px minimum, hairline-separated, never boxed. Ratio and time lead at Figure L; dose, yield and grind follow at 12px because inside a bag they are usually the only things that moved. Rating renders as five marks, filled to the score, absent entirely when null. The video glyph appears only when a row has one — no empty slot.</p>
+        <ul style="margin: 0; padding-left: 18px; font-size: 12.5px; line-height: 1.7; opacity: 0.75; max-width: 62ch;">
+          <li>Whole row is the tap target to <span class="num">/shots/:id</span>. Swipe left reveals edit and delete; no per-row buttons.</li>
+          <li>Timestamp is weekday plus clock inside a fortnight, then a date. Never "3 days ago" — you compare mornings.</li>
+          <li>A signed gold delta next to a value means it differs from the previous shot on the same bag — the mark states how far it moved, not merely that it moved. Only changed fields carry one.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 390px 1fr; gap: var(--space-8); align-items: start; padding-bottom: var(--space-6); border-bottom: 1px solid var(--color-divider);">
+      <div style="border: 1px solid var(--color-divider); border-radius: var(--radius-md); padding: var(--space-3) var(--space-4); background: var(--color-bg); display: flex; flex-direction: column; gap: var(--space-3);">
+        <div style="display: grid; grid-template-columns: 1fr auto; align-items: center; gap: var(--space-3);">
+          <div>
+            <div style="font-size: 12px; opacity: 0.65;">Dose</div>
+            <div class="fig" style="font-size: 25px; line-height: 1.2;">18.0 <span style="font-size: 14px; color: var(--color-neutral-600);">g</span></div>
+          </div>
+          <div style="display: flex; align-items: center; gap: var(--space-2);">
+            <button class="btn btn-secondary" style="width: 48px; height: 48px; padding: 0; font-size: 20px;">−</button>
+            <button class="btn btn-secondary" style="width: 48px; height: 48px; padding: 0; font-size: 20px;">+</button>
+          </div>
+        </div>
+        <div style="height: 1px; background: var(--color-divider);"></div>
+        <div style="display: grid; grid-template-columns: 1fr auto; align-items: center; gap: var(--space-3);">
+          <div>
+            <div style="font-size: 12px; opacity: 0.65;">Grind <span class="num" style="color: var(--color-accent-700);">+0.2 from reference</span></div>
+            <div class="fig" style="font-size: 25px; line-height: 1.2; color: var(--color-accent-700);">4.4</div>
+          </div>
+          <div style="display: flex; align-items: center; gap: var(--space-2);">
+            <button class="btn btn-secondary" style="width: 48px; height: 48px; padding: 0; font-size: 20px;">−</button>
+            <button class="btn btn-primary" style="width: 48px; height: 48px; padding: 0; font-size: 20px;">+</button>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div style="font-family: var(--font-heading); font-size: 22px; margin-bottom: var(--space-2);">Nudge row</div>
+        <p style="font-size: 13.5px; line-height: 1.65; opacity: 0.85; margin: 0 0 var(--space-3); max-width: 62ch;">The primary input of the whole app. Value on the left at Figure L, two 48px steppers on the right where a thumb reaches. Tapping the value itself opens the keypad for a large jump; the steppers handle the ±1 increment that dialling in actually needs.</p>
+        <ul style="margin: 0; padding-left: 18px; font-size: 12.5px; line-height: 1.7; opacity: 0.75; max-width: 62ch;">
+          <li>Steps: dose 0.1 g, yield 0.5 g, time 1s, grind 0.1 (or one notch of whatever text convention the last shot used).</li>
+          <li>Once a row differs from the reference shot, the value goes accent-700 and the label gains the signed delta. Untouched rows stay at full text colour — the screen reads as a diff at a glance.</li>
+          <li>Long-press repeats. Every stepper is idempotent against the reference, so double-back returns to the exact original value and clears the mark.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 390px 1fr; gap: var(--space-8); align-items: start; padding-bottom: var(--space-6); border-bottom: 1px solid var(--color-divider);">
+      <div style="display: flex; flex-direction: column; gap: var(--space-3);">
+        <div class="plate" style="aspect-ratio: 16 / 10; background: var(--color-neutral-900); display: grid; place-items: center;">
+          <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent-300)" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><polygon points="6 3 20 12 6 21 6 3"></polygon></svg>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11px; opacity: 0.6;">
+          <span class="num">Pour video · 0:31 · 42 MB</span>
+          <span class="num">Ready for analysis</span>
+        </div>
+      </div>
+      <div>
+        <div style="font-family: var(--font-heading); font-size: 22px; margin-bottom: var(--space-2);">Video plate</div>
+        <p style="font-size: 13.5px; line-height: 1.65; opacity: 0.85; margin: 0 0 var(--space-3); max-width: 62ch;">A quiet attachment, not the hero. The pour sits matted in the system's plate treatment, below the figures on the detail screen and behind a single glyph in lists. It gets a caption line, not a chrome bar: duration, size, and a status word that Phase 2 will repurpose.</p>
+        <ul style="margin: 0; padding-left: 18px; font-size: 12.5px; line-height: 1.7; opacity: 0.75; max-width: 62ch;">
+          <li>16:10 mat on the detail screen; phone footage letterboxes inside it rather than cropping — the crema surface is the point.</li>
+          <li>Upload is a file pick, so the states are: no video (a hairline "attach pour" row), uploading (determinate rule under the caption), ready, and unplayable (the HEVC case — caption states it plainly and offers download).</li>
+          <li>Phase 2 hook: the caption right slot becomes the analysis state, and an overlay track can be drawn inside the same mat without changing the layout.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 390px 1fr; gap: var(--space-8); align-items: start;">
+      <div style="display: flex; flex-direction: column; gap: var(--space-3);">
+        <div style="display: flex; gap: var(--space-2); flex-wrap: wrap;">
+          <button class="btn btn-primary">Log a shot</button>
+          <button class="btn btn-secondary">Duplicate</button>
+          <button class="btn btn-ghost">Edit</button>
+        </div>
+        <div class="field">
+          <label>Tasting note</label>
+          <textarea class="input" style="min-height: 64px;">Blackcurrant, drying finish. Pull longer.</textarea>
+        </div>
+        <div class="seg">
+          <label class="seg-opt"><input type="radio" name="sch-seg" checked>All bags</label>
+          <label class="seg-opt"><input type="radio" name="sch-seg">Active</label>
+          <label class="seg-opt"><input type="radio" name="sch-seg">Trends</label>
+        </div>
+      </div>
+      <div>
+        <div style="font-family: var(--font-heading); font-size: 22px; margin-bottom: var(--space-2);">Inherited parts</div>
+        <p style="font-size: 13.5px; line-height: 1.65; opacity: 0.85; margin: 0 0 var(--space-3); max-width: 62ch;">Buttons, fields, tags, segmented controls, tables and dialogs come from the system unchanged. Do not restyle them per screen; their hover, pressed and focus states are already themed.</p>
+        <ul style="margin: 0; padding-left: 18px; font-size: 12.5px; line-height: 1.7; opacity: 0.75; max-width: 62ch;">
+          <li>One primary per screen. On mobile it lives in the bottom bar as <span class="num">.btn-primary.btn-block</span> at 48px.</li>
+          <li>Free-text fields (grind, tasting note) use <span class="num">.input</span>. Numeric fields never do — they use nudge rows.</li>
+          <li>Delete is a ghost button plus the system dialog. It is the only irreversible action and never sits next to save.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section style="display: flex; flex-direction: column; gap: var(--space-6);">
+    <div style="display: flex; align-items: baseline; gap: var(--space-3); border-bottom: 1px solid var(--color-divider); padding-bottom: var(--space-3);">
+      <h2 style="font-family: var(--font-heading); font-weight: 400; font-size: 34px; margin: 0;">04 &nbsp;Screens</h2>
+      <span style="font-size: 12px; opacity: 0.55;">390 × 844, built only from section 03</span>
+    </div>
+
+    <div style="display: flex; gap: var(--space-6); flex-wrap: wrap;">
+
+      <figure style="display: flex; flex-direction: column; gap: var(--space-2); width: 390px;">
+        <div style="width: 390px; height: 844px; border: 1px solid var(--color-divider); border-radius: var(--radius-lg); overflow: hidden; background: var(--color-bg); display: flex; flex-direction: column; box-shadow: var(--shadow-sm);">
+          <div style="display: flex; align-items: center; justify-content: space-between; padding: 14px var(--space-4) var(--space-3); border-bottom: 1px solid var(--color-divider);">
+            <div style="font-family: var(--font-heading); font-weight: 600; font-size: 20px;">Shots</div>
+            <div style="display: flex; gap: var(--space-2);">
+              <button class="btn btn-secondary btn-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg></button>
+              <button class="btn btn-secondary btn-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M3 12h18M3 6h18M3 18h18"></path></svg></button>
+            </div>
+          </div>
+          <div class="screen" style="flex: 1; overflow: hidden; display: flex; flex-direction: column;">
+            <div style="padding: var(--space-3) var(--space-4) var(--space-2);">
+              <div class="seg" style="width: 100%;">
+                <label class="seg-opt" style="flex: 1; justify-content: center;"><input type="radio" name="sc1" checked>Active bags</label>
+                <label class="seg-opt" style="flex: 1; justify-content: center;"><input type="radio" name="sc1">All shots</label>
+              </div>
+            </div>
+
+            <div style="padding: var(--space-4) var(--space-4) var(--space-2); display: flex; align-items: baseline; justify-content: space-between;">
+              <div>
+                <div style="font-family: var(--font-heading); font-weight: 600; font-size: 19px;">Kenya Nyeri AA</div>
+                <div class="num" style="font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.55; margin-top: 3px;">Sey · 12 d · 8 shots</div>
+              </div>
+              <span class="tag tag-outline">Dialed</span>
+            </div>
+            <div style="border-top: 1px solid var(--color-divider);">
+              <div style="display: grid; grid-template-columns: 1fr auto; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-4); min-height: 64px; border-bottom: 1px solid var(--color-divider);">
+                <div>
+                  <div style="display: flex; align-items: baseline; gap: 14px;"><div class="fig" style="font-size: 24px; line-height: 1.15;"><span class="fig" style="font-size: 16px; font-weight: 400; color: var(--color-neutral-700);">1:</span>2.31</div><div class="fig" style="font-size: 16px; line-height: 1.15; color: var(--color-neutral-700);">28<span style="font-size: 12.5px; font-weight: 400;">s</span></div></div>
+                  <div class="num" style="font-size: 12.5px; color: var(--color-neutral-700);">18.0 → 41.5 g · grind 4.2</div>
+                </div>
+                <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
+                  <div style="display: flex; gap: 2px;">
+                    <span style="width: 7px; height: 7px; border-radius: 50%; background: var(--color-accent);"></span>
+                    <span style="width: 7px; height: 7px; border-radius: 50%; background: var(--color-accent);"></span>
+                    <span style="width: 7px; height: 7px; border-radius: 50%; background: var(--color-accent);"></span>
+                    <span style="width: 7px; height: 7px; border-radius: 50%; background: var(--color-accent);"></span>
+                    <span style="width: 7px; height: 7px; border-radius: 50%; border: 1px solid var(--color-neutral-400);"></span>
+                  </div>
+                  <div class="num" style="font-size: 11px; opacity: 0.5;">Tue 07:42</div>
+                </div>
+              </div>
+              <div style="display: grid; grid-template-columns: 1fr auto; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-4); min-height: 64px; border-bottom: 1px solid var(--color-divider);">
+                <div>
+                  <div style="display: flex; align-items: baseline; gap: 14px;"><div class="fig" style="font-size: 24px; line-height: 1.15;"><span class="fig" style="font-size: 16px; font-weight: 400; color: var(--color-neutral-700);">1:</span>2.28</div><div class="fig" style="font-size: 16px; line-height: 1.15; color: var(--color-neutral-700);">27<span style="font-size: 12.5px; font-weight: 400;">s</span></div></div>
+                  <div class="num" style="font-size: 12.5px; color: var(--color-neutral-700);">18.0 → 41.0 g · grind 4.2</div>
+                </div>
+                <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m22 8-6 4 6 4V8Z"></path><rect width="14" height="12" x="2" y="6" rx="2"></rect></svg>
+                  <div class="num" style="font-size: 11px; opacity: 0.5;">Mon 08:10</div>
+                </div>
+              </div>
+              <div style="display: grid; grid-template-columns: 1fr auto; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-4); min-height: 64px; border-bottom: 1px solid var(--color-divider);">
+                <div>
+                  <div style="display: flex; align-items: baseline; gap: 14px;"><div class="fig" style="font-size: 24px; line-height: 1.15;"><span class="fig" style="font-size: 16px; font-weight: 400; color: var(--color-neutral-700);">1:</span>2.08</div><div class="fig" style="font-size: 16px; line-height: 1.15; color: var(--color-neutral-700);">24<span style="font-size: 12.5px; font-weight: 400;">s</span></div></div>
+                  <div class="num" style="font-size: 12.5px; color: var(--color-neutral-700);">18.0 → 37.4 g · grind 4.4 <span style="color: var(--color-accent-700);">+0.2</span></div>
+                </div>
+                <div class="num" style="font-size: 11px; opacity: 0.5;">Sun 09:02</div>
+              </div>
+            </div>
+
+            <div style="padding: var(--space-6) var(--space-4) var(--space-2); display: flex; align-items: baseline; justify-content: space-between;">
+              <div>
+                <div style="font-family: var(--font-heading); font-weight: 600; font-size: 19px;">Colombia El Paraíso</div>
+                <div class="num" style="font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.55; margin-top: 3px;">Onyx · 5 d · 2 shots</div>
+              </div>
+              <span class="tag tag-accent">Dialing</span>
+            </div>
+            <div style="border-top: 1px solid var(--color-divider);">
+              <div style="display: grid; grid-template-columns: 1fr auto; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-4); min-height: 64px; border-bottom: 1px solid var(--color-divider);">
+                <div>
+                  <div style="display: flex; align-items: baseline; gap: 14px;"><div class="fig" style="font-size: 24px; line-height: 1.15;"><span class="fig" style="font-size: 16px; font-weight: 400; color: var(--color-neutral-700);">1:</span>1.94</div><div class="fig" style="font-size: 16px; line-height: 1.15; color: var(--color-neutral-700);">33<span style="font-size: 12.5px; font-weight: 400;">s</span></div></div>
+                  <div class="num" style="font-size: 12.5px; color: var(--color-neutral-700);">18.5 → 35.9 g · grind 3.8 <span style="color: var(--color-accent-700);">−0.4</span></div>
+                </div>
+                <div class="num" style="font-size: 11px; opacity: 0.5;">Sat 07:20</div>
+              </div>
+            </div>
+          </div>
+          <div style="border-top: 1px solid var(--color-divider); padding: var(--space-3) var(--space-4) var(--space-6); background: var(--color-bg);">
+            <button class="btn btn-primary btn-block" style="height: 48px; margin: 0;">Log a shot</button>
+          </div>
+        </div>
+        <figcaption style="font-size: 12px;">Shot list — bags carry the state, rows carry only what differs.</figcaption>
+      </figure>
+
+      <figure style="display: flex; flex-direction: column; gap: var(--space-2); width: 390px;">
+        <div style="width: 390px; height: 844px; border: 1px solid var(--color-divider); border-radius: var(--radius-lg); overflow: hidden; background: var(--color-bg); display: flex; flex-direction: column; box-shadow: var(--shadow-sm);">
+          <div style="display: flex; align-items: center; gap: var(--space-3); padding: 14px var(--space-4) var(--space-3); border-bottom: 1px solid var(--color-divider);">
+            <button class="btn btn-ghost" style="padding: 0;">Cancel</button>
+            <div style="font-family: var(--font-heading); font-weight: 600; font-size: 17px; margin-left: auto; margin-right: auto;">New shot</div>
+            <button class="btn btn-ghost" style="padding: 0;">Reset</button>
+          </div>
+          <div style="flex: 1; overflow: hidden; display: flex; flex-direction: column;">
+            <div style="padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--color-divider); display: flex; align-items: center; justify-content: space-between;">
+              <div>
+                <div class="num" style="font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.55;">Copied from Tue 07:42</div>
+                <div style="font-family: var(--font-heading); font-weight: 600; font-size: 18px; margin-top: 2px;">Kenya Nyeri AA</div>
+              </div>
+              <button class="btn btn-secondary" style="height: 36px;">Change</button>
+            </div>
+
+            <div style="padding: var(--space-2) var(--space-4);">
+              <div style="display: grid; grid-template-columns: 1fr auto; align-items: center; gap: var(--space-3); min-height: 72px; border-bottom: 1px solid var(--color-divider);">
+                <div>
+                  <div style="font-size: 12px; opacity: 0.65;">Grind <span class="num" style="color: var(--color-accent-700);">+0.2</span></div>
+                  <div class="fig" style="font-size: 25px; line-height: 1.2; color: var(--color-accent-700);">4.4</div>
+                </div>
+                <div style="display: flex; gap: var(--space-2);">
+                  <button class="btn btn-secondary" style="width: 48px; height: 48px; padding: 0; font-size: 20px;">−</button>
+                  <button class="btn btn-secondary" style="width: 48px; height: 48px; padding: 0; font-size: 20px;">+</button>
+                </div>
+              </div>
+              <div style="display: grid; grid-template-columns: 1fr auto; align-items: center; gap: var(--space-3); min-height: 72px; border-bottom: 1px solid var(--color-divider);">
+                <div>
+                  <div style="font-size: 12px; opacity: 0.65;">Dose</div>
+                  <div class="fig" style="font-size: 25px; line-height: 1.2;">18.0 <span style="font-size: 14px; color: var(--color-neutral-600);">g</span></div>
+                </div>
+                <div style="display: flex; gap: var(--space-2);">
+                  <button class="btn btn-secondary" style="width: 48px; height: 48px; padding: 0; font-size: 20px;">−</button>
+                  <button class="btn btn-secondary" style="width: 48px; height: 48px; padding: 0; font-size: 20px;">+</button>
+                </div>
+              </div>
+              <div style="display: grid; grid-template-columns: 1fr auto; align-items: center; gap: var(--space-3); min-height: 72px; border-bottom: 1px solid var(--color-divider);">
+                <div>
+                  <div style="font-size: 12px; opacity: 0.65;">Yield <span class="num" style="color: var(--color-accent-700);">−1.0</span></div>
+                  <div class="fig" style="font-size: 25px; line-height: 1.2; color: var(--color-accent-700);">40.5 <span style="font-size: 14px; color: var(--color-neutral-600);">g</span></div>
+                </div>
+                <div style="display: flex; gap: var(--space-2);">
+                  <button class="btn btn-secondary" style="width: 48px; height: 48px; padding: 0; font-size: 20px;">−</button>
+                  <button class="btn btn-secondary" style="width: 48px; height: 48px; padding: 0; font-size: 20px;">+</button>
+                </div>
+              </div>
+              <div style="display: grid; grid-template-columns: 1fr auto; align-items: center; gap: var(--space-3); min-height: 72px;">
+                <div>
+                  <div style="font-size: 12px; opacity: 0.65;">Pull time</div>
+                  <div class="fig" style="font-size: 25px; line-height: 1.2;">28 <span style="font-size: 14px; color: var(--color-neutral-600);">s</span></div>
+                </div>
+                <div style="display: flex; gap: var(--space-2);">
+                  <button class="btn btn-secondary" style="width: 48px; height: 48px; padding: 0; font-size: 20px;">−</button>
+                  <button class="btn btn-secondary" style="width: 48px; height: 48px; padding: 0; font-size: 20px;">+</button>
+                </div>
+              </div>
+            </div>
+
+            <div style="margin: 0 var(--space-4); padding: var(--space-3) 0; border-top: 1px solid var(--color-divider); border-bottom: 1px solid var(--color-divider); display: flex; align-items: baseline; justify-content: space-between;">
+              <span style="font-size: 12px; opacity: 0.65;">Ratio</span>
+              <span class="fig" style="font-size: 23px;"><span class="fig" style="font-size: 16px; font-weight: 400; color: var(--color-neutral-700);">1:</span>2.25</span>
+            </div>
+
+            <div style="padding: var(--space-3) var(--space-4); display: flex; flex-direction: column; gap: var(--space-3);">
+              <div style="display: flex; align-items: center; justify-content: space-between;">
+                <span style="font-size: 12px; opacity: 0.65;">Rating</span>
+                <div style="display: flex; gap: 10px;">
+                  <span style="width: 15px; height: 15px; border-radius: 50%; background: var(--color-accent);"></span>
+                  <span style="width: 15px; height: 15px; border-radius: 50%; background: var(--color-accent);"></span>
+                  <span style="width: 15px; height: 15px; border-radius: 50%; background: var(--color-accent);"></span>
+                  <span style="width: 15px; height: 15px; border-radius: 50%; border: 1px solid var(--color-neutral-400);"></span>
+                  <span style="width: 15px; height: 15px; border-radius: 50%; border: 1px solid var(--color-neutral-400);"></span>
+                </div>
+              </div>
+              <button class="btn btn-secondary btn-block" style="height: 48px; justify-content: space-between; margin: 0;"><span>Attach pour video</span><span style="opacity: 0.5; font-size: 12px;">optional</span></button>
+              <button class="btn btn-ghost" style="align-self: flex-start; padding: 0;">Add tasting note</button>
+            </div>
+          </div>
+          <div style="border-top: 1px solid var(--color-divider); padding: var(--space-3) var(--space-4) var(--space-6);">
+            <button class="btn btn-primary btn-block" style="height: 48px; margin: 0;">Save shot</button>
+          </div>
+        </div>
+        <figcaption style="font-size: 12px;">Log a shot — a diff of the reference pull, two taps from saved.</figcaption>
+      </figure>
+
+      <figure style="display: flex; flex-direction: column; gap: var(--space-2); width: 390px;">
+        <div style="width: 390px; height: 844px; border: 1px solid var(--color-divider); border-radius: var(--radius-lg); overflow: hidden; background: var(--color-bg); display: flex; flex-direction: column; box-shadow: var(--shadow-sm);">
+          <div style="display: flex; align-items: center; gap: var(--space-2); padding: 14px var(--space-4) var(--space-3); border-bottom: 1px solid var(--color-divider);">
+            <button class="btn btn-ghost" style="padding: 0;">Shots</button>
+            <div style="margin-left: auto; display: flex; gap: var(--space-2);">
+              <button class="btn btn-secondary" style="height: 36px;">Edit</button>
+              <button class="btn btn-secondary" style="height: 36px;">Duplicate</button>
+            </div>
+          </div>
+          <div style="flex: 1; overflow: hidden; display: flex; flex-direction: column;">
+            <div style="padding: var(--space-4) var(--space-4) var(--space-3);">
+              <div class="num" style="font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.55;">Kenya Nyeri AA · 12 d · Tue 07:42</div>
+              <div style="display: flex; align-items: baseline; gap: var(--space-4); margin-top: var(--space-2);">
+                <div class="fig" style="font-size: 44px; line-height: 1.05;"><span class="fig" style="font-size: 27px; font-weight: 400; color: var(--color-neutral-700);">1:</span>2.31</div>
+                <div class="fig" style="font-size: 34px; line-height: 1.05; color: var(--color-neutral-700);">28s</div>
+              </div>
+            </div>
+            <div style="padding: 0 var(--space-4) var(--space-3);">
+              <div class="plate" style="aspect-ratio: 16 / 10; background: var(--color-neutral-900); display: grid; place-items: center;">
+                <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent-300)" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><polygon points="6 3 20 12 6 21 6 3"></polygon></svg>
+              </div>
+              <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11px; opacity: 0.6; margin-top: 5px;">
+                <span class="num">Pour video · 0:31</span>
+                <span class="num">Ready for analysis</span>
+              </div>
+            </div>
+            <div style="padding: var(--space-2) var(--space-4) 0;">
+              <table class="table">
+                <tbody>
+                  <tr><td style="opacity: 0.65;">Dose</td><td class="num" style="text-align: right;">18.0 g</td></tr>
+                  <tr><td style="opacity: 0.65;">Yield</td><td class="num" style="text-align: right;">41.5 g</td></tr>
+                  <tr><td style="opacity: 0.65;">Grind</td><td class="num" style="text-align: right;">4.2</td></tr>
+                  <tr><td style="opacity: 0.65;">Rating</td><td class="num" style="text-align: right;">4 / 5</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div style="padding: var(--space-3) var(--space-4);">
+              <div class="num" style="font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.55; margin-bottom: 6px;">Against the previous shot</div>
+              <div class="num" style="font-size: 13px; line-height: 1.7;">
+                <span style="color: var(--color-accent-700);">−0.2</span> grind &nbsp;·&nbsp; <span style="color: var(--color-accent-700);">+4.1 g</span> yield &nbsp;·&nbsp; <span style="color: var(--color-accent-700);">+4s</span> time
+              </div>
+            </div>
+            <div style="padding: 0 var(--space-4);">
+              <div style="border-top: 1px solid var(--color-divider); padding-top: var(--space-3); font-family: var(--font-heading); font-size: 19px; font-weight: 400; font-style: italic; line-height: 1.4;">Blackcurrant up front, drying finish. Closer, but still needs another second.</div>
+            </div>
+          </div>
+          <div style="border-top: 1px solid var(--color-divider); padding: var(--space-3) var(--space-4) var(--space-6); display: flex; justify-content: space-between; align-items: center;">
+            <button class="btn btn-ghost" style="padding: 0;">Delete shot</button>
+            <button class="btn btn-primary" style="height: 48px;">Pull another like this</button>
+          </div>
+        </div>
+        <figcaption style="font-size: 12px;">Shot detail — figures first, video matted, delta stated in words.</figcaption>
+      </figure>
+
+      <figure style="display: flex; flex-direction: column; gap: var(--space-2); width: 390px;">
+        <div style="width: 390px; height: 844px; border: 1px solid var(--color-divider); border-radius: var(--radius-lg); overflow: hidden; background: var(--color-bg); display: flex; flex-direction: column; box-shadow: var(--shadow-sm);">
+          <div style="display: flex; align-items: center; justify-content: space-between; padding: 14px var(--space-4) var(--space-3); border-bottom: 1px solid var(--color-divider);">
+            <div style="font-family: var(--font-heading); font-weight: 600; font-size: 20px;">Trends</div>
+            <button class="btn btn-secondary" style="height: 36px;">Kenya Nyeri AA</button>
+          </div>
+          <div style="flex: 1; overflow: hidden; display: flex; flex-direction: column; padding: var(--space-4); gap: var(--space-6);">
+            <div>
+              <div class="num" style="font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.55;">Ratio against time</div>
+              <div style="font-size: 12.5px; opacity: 0.7; margin: 4px 0 var(--space-3);">Where your shots land, and the window you said you liked.</div>
+              <svg viewBox="0 0 340 190" width="100%" style="overflow: visible;">
+                <rect x="150" y="46" width="96" height="72" fill="var(--color-accent-100)" stroke="var(--color-accent-300)" stroke-dasharray="3 3"></rect>
+                <line x1="34" y1="160" x2="330" y2="160" stroke="var(--color-divider)"></line>
+                <line x1="34" y1="10" x2="34" y2="160" stroke="var(--color-divider)"></line>
+                <circle cx="120" cy="132" r="4" fill="none" stroke="var(--color-neutral-600)"></circle>
+                <circle cx="142" cy="108" r="4" fill="none" stroke="var(--color-neutral-600)"></circle>
+                <circle cx="176" cy="96" r="4" fill="none" stroke="var(--color-neutral-600)"></circle>
+                <circle cx="198" cy="74" r="4" fill="none" stroke="var(--color-neutral-600)"></circle>
+                <circle cx="214" cy="66" r="4.5" fill="var(--color-accent)"></circle>
+                <circle cx="240" cy="88" r="4" fill="none" stroke="var(--color-neutral-600)"></circle>
+                <circle cx="268" cy="52" r="4" fill="none" stroke="var(--color-neutral-600)"></circle>
+                <text class="num" x="34" y="180" font-size="10" fill="var(--color-neutral-600)" font-family="Lora">22s</text>
+                <text class="num" x="300" y="180" font-size="10" fill="var(--color-neutral-600)" font-family="Lora">36s</text>
+                <text class="num" x="0" y="16" font-size="10" fill="var(--color-neutral-600)" font-family="Lora">2.6</text>
+                <text class="num" x="0" y="160" font-size="10" fill="var(--color-neutral-600)" font-family="Lora">1.8</text>
+                <text class="num" x="0" y="30" font-size="8.5" letter-spacing="0.08em" fill="var(--color-neutral-600)" font-family="Lora">RATIO</text>
+              </svg>
+            </div>
+            <div>
+              <div class="num" style="font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.55;">Pull time consistency</div>
+              <div style="font-size: 12.5px; opacity: 0.7; margin: 4px 0 var(--space-3);">Last 14 shots against your median of 28s.</div>
+              <svg viewBox="0 0 340 120" width="100%">
+                <rect x="0" y="44" width="340" height="26" fill="var(--color-accent-100)"></rect>
+                <line x1="0" y1="57" x2="340" y2="57" stroke="var(--color-accent-300)"></line>
+                <polyline points="8,92 34,78 60,86 86,64 112,70 138,52 164,58 190,49 216,56 242,44 268,52 294,47 320,50 336,46" fill="none" stroke="var(--color-neutral-800)" stroke-width="1.4"></polyline>
+                <circle cx="336" cy="46" r="3.5" fill="var(--color-accent)"></circle>
+              </svg>
+            </div>
+            <div>
+              <div class="num" style="font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.55;">Rating by shot on this bag</div>
+              <div style="font-size: 12.5px; opacity: 0.7; margin: 4px 0 var(--space-3);">Whether dialling in is actually working.</div>
+              <svg viewBox="0 0 340 110" width="100%">
+                <line x1="0" y1="100" x2="340" y2="100" stroke="var(--color-divider)"></line>
+                <rect x="10" y="76" width="26" height="24" fill="none" stroke="var(--color-neutral-600)"></rect>
+                <rect x="52" y="60" width="26" height="40" fill="none" stroke="var(--color-neutral-600)"></rect>
+                <rect x="94" y="76" width="26" height="24" fill="none" stroke="var(--color-neutral-600)"></rect>
+                <rect x="136" y="44" width="26" height="56" fill="none" stroke="var(--color-neutral-600)"></rect>
+                <rect x="178" y="28" width="26" height="72" fill="none" stroke="var(--color-neutral-600)"></rect>
+                <rect x="220" y="44" width="26" height="56" fill="none" stroke="var(--color-neutral-600)"></rect>
+                <rect x="262" y="12" width="26" height="88" fill="none" stroke="var(--color-accent)"></rect>
+                <rect x="304" y="12" width="26" height="88" fill="none" stroke="var(--color-accent)"></rect>
+              </svg>
+            </div>
+          </div>
+        </div>
+        <figcaption style="font-size: 12px;">Trends — three questions, three drawn answers, no dashboard.</figcaption>
+      </figure>
+
+    </div>
+  </section>
+
+  <section style="display: flex; flex-direction: column; gap: var(--space-4);">
+    <div style="display: flex; align-items: baseline; gap: var(--space-3); border-bottom: 1px solid var(--color-divider); padding-bottom: var(--space-3);">
+      <h2 style="font-family: var(--font-heading); font-weight: 400; font-size: 34px; margin: 0;">05 &nbsp;Decisions and hooks</h2>
+      <span style="font-size: 12px; opacity: 0.55;">What this schema commits you to, and what it leaves open</span>
+    </div>
+    <table class="table">
+      <thead>
+        <tr><th style="width: 22%;">Question</th><th style="width: 39%;">Decision</th><th>Consequence in code</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Bag identity</td><td>Client-side grouping on <span class="num">bean_name</span> + <span class="num">roast_date</span>. No bags table in v1.</td><td>A <span class="num">groupShotsByBag()</span> helper next to <span class="num">listShots()</span>; the heading is already a link target for a future <span class="num">/bags/:id</span>.</td></tr>
+        <tr><td>Dial-in state</td><td>Derived per bag from the last two shots. Shown as a tag on the heading and as deltas on rows.</td><td>Pure functions over the shots array — nothing new persisted, nothing to migrate.</td></tr>
+        <tr><td>Reference shot</td><td>The most recent shot on the bag, unless one is starred. Duplicate copies from it.</td><td>Optional <span class="num">is_reference</span> boolean on <span class="num">shots</span> when you want it; until then, most recent.</td></tr>
+        <tr><td>Video prominence</td><td>Quiet attachment. Matted, below the figures, one glyph in lists.</td><td>No layout change needed when Phase 2 adds analysis — it fills the caption's right slot and the mat's interior.</td></tr>
+        <tr><td>Stats scope</td><td>Three charts only: ratio × time, pull-time consistency, rating by shot on a bag.</td><td>All three compute from the shots array in the client. No new tables, no aggregation service.</td></tr>
+        <tr><td>Colour semantics</td><td>No good/bad colour. Gold means change: signed deltas and the values that moved. Ratios and times stay ink so the gold has something to stand against.</td><td>Frees you from ever defining a "correct" ratio; the target window on the scatter is user-set, not shipped.</td></tr>
+      </tbody>
+    </table>
+    <p style="font-size: 12.5px; line-height: 1.65; opacity: 0.7; margin: var(--space-2) 0 0; max-width: 80ch;">Adoption order that keeps the app shippable throughout: tokens and type first (a <span class="num">theme.css</span> next to <span class="num">index.css</span>), then the shot row and bag heading in <span class="num">ShotListPage</span>, then the nudge row replacing the numeric inputs in <span class="num">ShotForm</span>, then the detail hero, then trends as a new route. Nothing above requires a schema migration.</p>
+  </section>
+
+</div>
+</div>
+</x-dc>
+</body>
+</html>
