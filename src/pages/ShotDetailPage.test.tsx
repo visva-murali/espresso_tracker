@@ -1,9 +1,9 @@
 // src/pages/ShotDetailPage.test.tsx
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { ShotDetailPage } from './ShotDetailPage';
-import { getShot, listShots } from '../lib/shots';
+import { getShot, listShots, deleteShot } from '../lib/shots';
 import { getVideoForShot, getVideoPlaybackUrl } from '../lib/videos';
 
 vi.mock('../lib/shots', () => ({ getShot: vi.fn(), listShots: vi.fn(), deleteShot: vi.fn() }));
@@ -13,6 +13,12 @@ vi.mock('../lib/videos', () => ({
   validateVideoFile: vi.fn(),
   uploadShotVideo: vi.fn(),
 }));
+
+const navigateMock = vi.fn();
+vi.mock('react-router-dom', async () => {
+  const actual = await vi.importActual('react-router-dom');
+  return { ...actual, useNavigate: () => navigateMock };
+});
 
 const previousShot = {
   id: 'shot-0',
@@ -52,6 +58,10 @@ function renderAtShot(id: string) {
 }
 
 describe('ShotDetailPage', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it('renders the hero ratio, pull time, and delta block against the previous shot on the bag', async () => {
     vi.mocked(getShot).mockResolvedValue(shot);
     vi.mocked(listShots).mockResolvedValue([shot, previousShot]);
@@ -61,8 +71,10 @@ describe('ShotDetailPage', () => {
 
     await waitFor(() => expect(screen.getByText('Kenya Nyeri AA')).toBeInTheDocument());
     expect(screen.getByText('2.00')).toBeInTheDocument();
-    expect(screen.getByText(/Against the previous shot/)).toBeInTheDocument();
-    expect(screen.getByText('+4.0 g yield')).toBeInTheDocument();
+    const deltaHeading = screen.getByText(/Against the previous shot/);
+    expect(deltaHeading).toBeInTheDocument();
+    expect(deltaHeading.parentElement?.parentElement?.textContent).toContain('+4.0 g yield');
+    expect(screen.getByText('+4.0')).toBeInTheDocument();
   });
 
   it('omits the delta block for a bag\'s first shot', async () => {
@@ -130,9 +142,26 @@ describe('ShotDetailPage', () => {
   it('shows a not-found message when the shot does not exist', async () => {
     vi.mocked(getShot).mockResolvedValue(null);
     vi.mocked(listShots).mockResolvedValue([]);
+    vi.mocked(getVideoForShot).mockResolvedValue(null);
 
     renderAtShot('missing');
 
     await waitFor(() => expect(screen.getByText(/shot not found/i)).toBeInTheDocument());
+  });
+
+  it('deletes the shot after confirmation and navigates to the list', async () => {
+    vi.mocked(getShot).mockResolvedValue(shot);
+    vi.mocked(listShots).mockResolvedValue([shot]);
+    vi.mocked(getVideoForShot).mockResolvedValue(null);
+    vi.mocked(deleteShot).mockResolvedValue(undefined);
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+
+    renderAtShot('shot-1');
+
+    await waitFor(() => expect(screen.getByRole('button', { name: /delete/i })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: /delete/i }));
+
+    await waitFor(() => expect(deleteShot).toHaveBeenCalledWith('shot-1'));
+    expect(navigateMock).toHaveBeenCalledWith('/');
   });
 });

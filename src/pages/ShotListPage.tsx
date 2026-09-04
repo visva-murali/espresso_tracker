@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { listShots, type Shot } from '../lib/shots';
-import { groupShotsByBag, bagState, ratio, daysSinceRoast, type Bag } from '../lib/shotView';
+import { groupShotsByBag, bagState, ratio, daysSinceRoast, deltas, bagKey, type Bag } from '../lib/shotView';
 import { formatMass, formatSigned, formatRoastAge } from '../lib/format';
 import { useAuth } from '../context/AuthContext';
 import { SearchIcon, MenuIcon, VideoIcon } from '../components/icons';
@@ -25,8 +25,9 @@ function formatTimestamp(iso: string): string {
 }
 
 function ShotRow({ shot, previous }: { shot: Shot; previous: Shot | null }) {
-  const doseDelta = previous ? formatSigned(shot.dose_g - previous.dose_g, 1) : null;
-  const yieldDelta = previous ? formatSigned(shot.yield_g - previous.yield_g, 1) : null;
+  const shotDeltas = previous ? deltas(shot, previous) : null;
+  const doseDelta = shotDeltas ? formatSigned(shotDeltas.dose_g, 1) : null;
+  const yieldDelta = shotDeltas ? formatSigned(shotDeltas.yield_g, 1) : null;
 
   return (
     <Link
@@ -134,6 +135,7 @@ export function ShotListPage() {
           <button
             type="button"
             aria-label="Search"
+            disabled
             className="w-9 h-9 flex items-center justify-center border border-[var(--color-divider)] rounded-[var(--radius-md)] hover:bg-[var(--color-accent-100)] active:bg-[var(--color-accent-200)]"
           >
             <SearchIcon />
@@ -200,7 +202,7 @@ export function ShotListPage() {
         <p style={{ padding: 'var(--space-4)' }}>No shots logged yet.</p>
       )}
       {visibleBags.map((bag) => (
-        <BagGroup key={`${bag.bean_name ?? ''}-${bag.roast_date ?? ''}`} bag={bag} />
+        <BagGroup key={bagKey(bag)} bag={bag} />
       ))}
 
       <div

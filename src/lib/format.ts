@@ -1,6 +1,6 @@
 // src/lib/format.ts
 const MINUS_SIGN = '−';
-const HAIR_SPACE = ' ';
+const HAIR_SPACE = ' ';
 
 export function formatSigned(value: number, decimals: number): string {
   const rounded = Number(value.toFixed(decimals));

@@ -22,11 +22,11 @@ describe('formatSigned', () => {
 
 describe('formatMass', () => {
   it('formats one decimal with a hair space before g', () => {
-    expect(formatMass(18)).toBe('18.0 g');
+    expect(formatMass(18)).toBe('18.0 g');
   });
 
   it('rounds to one decimal', () => {
-    expect(formatMass(41.47)).toBe('41.5 g');
+    expect(formatMass(41.47)).toBe('41.5 g');
   });
 });
 

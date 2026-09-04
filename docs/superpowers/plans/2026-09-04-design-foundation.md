@@ -10,18 +10,17 @@
 
 **Spec:** `docs/design/README.md` (the full schema: tokens, layout rules, all four screens, decisions table) and `docs/design/classical/readme.md` (the design system's own guide). Both travel with this plan; read `docs/design/README.md` in full before starting - every measurement and rule below is copied from it, but the screen sections there also carry prose context this plan does not repeat.
 
-## Progress (as of 2026-09-04, paused mid-execution)
+## Progress (as of 2026-09-04, complete)
 
-Being executed via `superpowers:subagent-driven-development` on branch `worktree-design-foundation` (worktree at `.claude/worktrees/design-foundation` off the main repo). Paused after Task 2 - not a blocker, the user stopped execution to conserve credits. Resume by re-entering that worktree and continuing with Task 3.
+Executed via `superpowers:subagent-driven-development` on branch `worktree-design-foundation` (worktree at `.claude/worktrees/design-foundation` off the main repo). All 9 tasks are done, committed, and reviewed.
 
 **Done, committed, reviewed clean:**
 - Task 0 (tokens and fonts) - commit `b4736de`
-- Task 1 (shot-view helpers) - commit `1e5ca54`. Review caught a real latent bug in this plan's own `parsedGrindDelta` code (bare `Number.parseFloat` would have accepted `"2 o'clock"` as `2`, contradicting this plan's own test); fixed in both the shipped code and in this plan's text (search "NUMERIC_GRIND" below) - no further action needed on that front.
+- Task 1 (shot-view helpers) - commit `1e5ca54`. Review caught a real latent bug in this plan's own `parsedGrindDelta` code (bare `Number.parseFloat` would have accepted `"2 o'clock"` as `2`, contradicting this plan's own test); fixed in both the shipped code and in this plan's text (search "NUMERIC_GRIND" below).
 - Task 2 (shared display primitives) - commits `1e5ca54..7c466d7` (one fix round: `BagSelector` was missing hover/pressed states, now fixed).
+- Task 3 (shot list page), Tasks 4-6 (ShotForm, NewShotPage, EditShotPage, dispatched and reviewed together), Task 7 (shot detail), and Task 8 (trends) - all completed in the commits that follow on this branch.
 
-**Not started:** Task 3 (shot list page) is next, in plan order. Tasks 4, 5, 6 (ShotForm, NewShotPage, EditShotPage) must be dispatched and reviewed as **one combined unit**, not three separate ones - Task 4 alone leaves `NewShotPage.test.tsx` and `EditShotPage.test.tsx` failing until 5 and 6 also land, since all three share one breaking prop-signature change to `ShotForm`. Then Task 7 (shot detail), then Task 8 (trends).
-
-**Two Minor items parked for the final whole-branch review** (do not need fixing now, do not block progress): `src/lib/format.ts`'s `HAIR_SPACE` constant and its two test assertions use a plain space (U+0020) instead of the real Unicode hair space (U+200A) this plan specifies - an implementer transcription slip; fixing it later only touches `format.ts`/`format.test.ts` since every consumer calls the shared `formatMass()` helper rather than hardcoding the character. Also: `bagKey()` helpers (in `shotView.ts` and `BagSelector.tsx`) use a `|` or space separator rather than this plan's exact literal character - functionally equivalent, no fix needed.
+The final whole-branch review (2026-09-04) covered all 9 tasks together and found 15 items, from a critical validation gap (an empty ShotForm submit could persist a corrupt 0/0/0 shot) to smaller consistency, navigation, and doc-accuracy findings. All 15 were fixed in one combined fix-round commit on top of the 9 task commits. This branch is now ready for `superpowers:finishing-a-development-branch`.
 
 **If resuming without the original session's ledger** (e.g. a fresh worktree instead of the one above): the full ruling history, review verdicts, and exact commit ranges live in `.superpowers/sdd/2026-09-04-design-foundation/progress.md` inside that worktree - it is git-ignored, so it only exists there, not on this branch. If that file is gone, this Progress section plus `git log --oneline` on this branch (commits `b4736de`, `1e5ca54`, `7c466d7`, in that order, each a completed task) is the recovery path; the pre-flight conflict scan and rulings the ledger recorded are otherwise summarized above.
 

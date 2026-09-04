@@ -9,7 +9,7 @@ import {
   uploadShotVideo,
   type Video,
 } from '../lib/videos';
-import { groupShotsByBag, deltas, ratio, daysSinceRoast } from '../lib/shotView';
+import { groupShotsByBag, deltas, ratio, daysSinceRoast, sameBag } from '../lib/shotView';
 import { formatMass, formatSigned, formatRoastAge } from '../lib/format';
 import { RatioFigure } from '../components/shot-display/RatioFigure';
 import { PullTimeFigure } from '../components/shot-display/PullTimeFigure';
@@ -17,9 +17,7 @@ import { PullTimeFigure } from '../components/shot-display/PullTimeFigure';
 type VideoState = 'none' | 'uploading' | 'ready' | 'unplayable';
 
 function findPreviousShot(shot: Shot, allShots: Shot[]): Shot | null {
-  const bag = groupShotsByBag(allShots).find(
-    (b) => b.bean_name === shot.bean_name && b.roast_date === shot.roast_date
-  );
+  const bag = groupShotsByBag(allShots).find((b) => sameBag(b, shot));
   if (!bag) return null;
   const index = bag.shots.findIndex((s) => s.id === shot.id);
   return index >= 0 ? bag.shots[index + 1] ?? null : null;
@@ -48,12 +46,14 @@ export function ShotDetailPage() {
 
   useEffect(() => {
     if (!id) return;
-    getVideoForShot(id).then((v) => {
-      setVideo(v);
-      if (!v) return;
-      setVideoState('ready');
-      getVideoPlaybackUrl(v).then(setVideoUrl);
-    });
+    getVideoForShot(id)
+      .then((v) => {
+        setVideo(v);
+        if (!v) return;
+        setVideoState('ready');
+        getVideoPlaybackUrl(v).then(setVideoUrl);
+      })
+      .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load video'));
   }, [id]);
 
   async function handleVideoAttach(e: ChangeEvent<HTMLInputElement>) {
@@ -65,18 +65,27 @@ export function ShotDetailPage() {
       return;
     }
     setVideoState('uploading');
-    const uploaded = await uploadShotVideo(id, file);
-    setVideo(uploaded);
-    const url = await getVideoPlaybackUrl(uploaded);
-    setVideoUrl(url);
-    setVideoState('ready');
+    try {
+      const uploaded = await uploadShotVideo(id, file);
+      setVideo(uploaded);
+      const url = await getVideoPlaybackUrl(uploaded);
+      setVideoUrl(url);
+      setVideoState('ready');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to upload video');
+      setVideoState('none');
+    }
   }
 
   async function handleDelete() {
     if (!id) return;
     if (!window.confirm('Delete this shot? This cannot be undone.')) return;
-    await deleteShot(id);
-    navigate('/');
+    try {
+      await deleteShot(id);
+      navigate('/');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete shot');
+    }
   }
 
   if (error) return <p style={{ color: 'var(--color-accent-800)' }}>{error}</p>;
@@ -113,14 +122,6 @@ export function ShotDetailPage() {
           >
             Duplicate
           </Link>
-          <button
-            type="button"
-            onClick={handleDelete}
-            className="text-sm rounded-[var(--radius-sm)] px-1 py-0.5 hover:bg-[var(--color-accent-100)] active:bg-[var(--color-accent-200)]"
-            style={{ color: 'var(--color-neutral-700)' }}
-          >
-            Delete shot
-          </button>
         </div>
       </header>
 
@@ -262,18 +263,17 @@ export function ShotDetailPage() {
           </div>
           <div style={{ fontSize: '13px' }}>
             {shotDeltas.grind != null && (
-              <span className="fig" style={{ color: 'var(--color-accent-700)' }}>
-                {formatSigned(shotDeltas.grind, 1)} grind
+              <span style={{ color: 'var(--color-accent-700)' }}>
+                <span className="fig">{formatSigned(shotDeltas.grind, 1)}</span> grind
               </span>
             )}
             {shotDeltas.grind != null && ' · '}
-            <span className="fig" style={{ color: 'var(--color-accent-700)' }}>
-              {formatSigned(shotDeltas.yield_g, 1)}
-              {' '}g yield
+            <span style={{ color: 'var(--color-accent-700)' }}>
+              <span className="fig">{formatSigned(shotDeltas.yield_g, 1)}</span> g yield
             </span>
             {' · '}
-            <span className="fig" style={{ color: 'var(--color-accent-700)' }}>
-              {formatSigned(shotDeltas.pull_time_s, 0)}s time
+            <span style={{ color: 'var(--color-accent-700)' }}>
+              <span className="fig">{formatSigned(shotDeltas.pull_time_s, 0)}</span>s time
             </span>
           </div>
         </div>
@@ -295,12 +295,20 @@ export function ShotDetailPage() {
       )}
 
       <div
-        className="flex justify-center border-t border-[var(--color-divider)]"
+        className="flex justify-between items-center border-t border-[var(--color-divider)]"
         style={{ padding: 'var(--space-3) var(--space-4) var(--space-6)' }}
       >
+        <button
+          type="button"
+          onClick={handleDelete}
+          className="text-sm rounded-[var(--radius-sm)] px-1 py-0.5 hover:bg-[var(--color-accent-100)] active:bg-[var(--color-accent-200)]"
+          style={{ color: 'var(--color-neutral-700)' }}
+        >
+          Delete shot
+        </button>
         <Link
           to={`/shots/new?from=${id}`}
-          className="flex items-center justify-center border border-[var(--color-accent)] rounded-[var(--radius-md)] hover:bg-[var(--color-accent-100)] active:bg-[var(--color-accent-200)] w-full"
+          className="flex items-center justify-center border border-[var(--color-accent)] rounded-[var(--radius-md)] hover:bg-[var(--color-accent-100)] active:bg-[var(--color-accent-200)]"
           style={{ height: '48px', padding: '0 var(--space-4)', color: 'var(--color-accent)' }}
         >
           Pull another like this

@@ -1,20 +1,8 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, Link } from 'react-router-dom';
 import { ShotForm, type ShotFormValues } from '../components/ShotForm';
 import { getShot, updateShot, type Shot } from '../lib/shots';
-
-function toFormValues(shot: Shot): ShotFormValues {
-  return {
-    grind_setting: shot.grind_setting,
-    dose_g: String(shot.dose_g),
-    yield_g: String(shot.yield_g),
-    pull_time_s: String(shot.pull_time_s),
-    bean_name: shot.bean_name ?? '',
-    roast_date: shot.roast_date ?? '',
-    rating: shot.rating != null ? String(shot.rating) : '',
-    tasting_note: shot.tasting_note ?? '',
-  };
-}
+import { toFormValues } from '../lib/shotView';
 
 export function EditShotPage() {
   const { id } = useParams<{ id: string }>();
@@ -52,6 +40,15 @@ export function EditShotPage() {
 
   return (
     <div className="max-w-md mx-auto">
+      <div className="flex items-center border-b border-[var(--color-divider)]" style={{ padding: 'var(--space-3) var(--space-4)' }}>
+        <Link
+          to={`/shots/${id}`}
+          className="rounded-[var(--radius-sm)] px-1 py-0.5 hover:bg-[var(--color-accent-100)] active:bg-[var(--color-accent-200)]"
+          style={{ color: 'var(--color-accent)' }}
+        >
+          Shot
+        </Link>
+      </div>
       <h1
         className="text-center"
         style={{ fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: '17px', padding: 'var(--space-3) 0' }}

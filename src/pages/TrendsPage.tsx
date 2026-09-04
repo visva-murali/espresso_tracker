@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { listShots, type Shot } from '../lib/shots';
-import { groupShotsByBag, ratio, type Bag } from '../lib/shotView';
+import { groupShotsByBag, ratio, sameBag, type Bag } from '../lib/shotView';
 import { scaleLinear, medianOf } from '../lib/chartScale';
 import { BagSelector } from '../components/BagSelector';
 
@@ -112,7 +112,7 @@ export function TrendsPage() {
           bags={bags}
           selected={selectedBag}
           onSelect={(bag) => {
-            const match = bags.find((b) => b.bean_name === bag.bean_name && b.roast_date === bag.roast_date);
+            const match = bags.find((b) => sameBag(b, bag));
             if (match) setSelectedBag(match);
           }}
           label={selectedBag?.bean_name ?? 'Select bag'}

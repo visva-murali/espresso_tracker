@@ -1,5 +1,6 @@
 // src/components/BagSelector.tsx
 import { useState } from 'react';
+import { bagKey, sameBag } from '../lib/shotView';
 
 export type BagIdentity = {
   bean_name: string | null;
@@ -12,10 +13,6 @@ type Props = {
   onSelect: (bag: BagIdentity) => void;
   label: string;
 };
-
-function bagKey(bag: BagIdentity): string {
-  return `${bag.bean_name ?? ''} ${bag.roast_date ?? ''}`;
-}
 
 export function BagSelector({ bags, selected, onSelect, label }: Props) {
   const [open, setOpen] = useState(false);
@@ -40,7 +37,7 @@ export function BagSelector({ bags, selected, onSelect, label }: Props) {
               <button
                 type="button"
                 role="option"
-                aria-selected={selected != null && bagKey(bag) === bagKey(selected)}
+                aria-selected={selected != null && sameBag(bag, selected)}
                 onClick={() => {
                   onSelect(bag);
                   setOpen(false);

@@ -1,5 +1,6 @@
 // src/lib/shotView.ts
 import type { Shot } from './shots';
+import type { ShotFormValues } from '../components/ShotForm';
 
 export type Bag = {
   bean_name: string | null;
@@ -22,8 +23,15 @@ const RESTING_MAX_DAYS = 4;
 const PAST_PEAK_MIN_DAYS = 28;
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
 
-function bagKey(shot: Pick<Shot, 'bean_name' | 'roast_date'>): string {
-  return `${shot.bean_name ?? ''}|${shot.roast_date ?? ''}`;
+export function bagKey(bag: { bean_name: string | null; roast_date: string | null }): string {
+  return `${bag.bean_name ?? ''}|${bag.roast_date ?? ''}`;
+}
+
+export function sameBag(
+  a: { bean_name: string | null; roast_date: string | null },
+  b: { bean_name: string | null; roast_date: string | null }
+): boolean {
+  return bagKey(a) === bagKey(b);
 }
 
 /**
@@ -113,4 +121,17 @@ export function ratio(shot: Pick<Shot, 'dose_g' | 'yield_g'>): number {
 
 export function formatRatio(value: number): string {
   return `1:${value.toFixed(2)}`;
+}
+
+export function toFormValues(shot: Shot): ShotFormValues {
+  return {
+    grind_setting: shot.grind_setting,
+    dose_g: String(shot.dose_g),
+    yield_g: String(shot.yield_g),
+    pull_time_s: String(shot.pull_time_s),
+    bean_name: shot.bean_name ?? '',
+    roast_date: shot.roast_date ?? '',
+    rating: shot.rating != null ? String(shot.rating) : '',
+    tasting_note: shot.tasting_note ?? '',
+  };
 }

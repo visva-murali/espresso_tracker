@@ -102,13 +102,26 @@ describe('NewShotPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
 
     expect(screen.getByLabelText('Dose')).toHaveValue('');
+    // Grind, dose, yield, and pull time are all required (ShotForm rejects an
+    // empty/zero submit), so every nudge-able field needs a nudge before Save
+    // will actually persist anything on a brand-new bag with blank fields.
+    fireEvent.click(screen.getByRole('button', { name: 'Increase grind' }));
     fireEvent.click(screen.getByRole('button', { name: 'Increase dose' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Increase yield' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Increase pull time' }));
     fireEvent.click(screen.getByRole('button', { name: 'Save shot' }));
 
     await waitFor(() =>
-      expect(createShot).toHaveBeenCalledWith(
-        expect.objectContaining({ bean_name: 'Colombia Huila', dose_g: 0.1 })
-      )
+      expect(createShot).toHaveBeenCalledWith({
+        grind_setting: '0.1',
+        dose_g: 0.1,
+        yield_g: 0.5,
+        pull_time_s: 1,
+        bean_name: 'Colombia Huila',
+        roast_date: null,
+        rating: null,
+        tasting_note: null,
+      })
     );
   });
 

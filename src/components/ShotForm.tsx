@@ -101,6 +101,8 @@ function NudgeRow({
           aria-label={LABEL[field]}
           value={value}
           onChange={(e) => onChange(e.target.value)}
+          required
+          inputMode={field !== 'grind_setting' ? 'decimal' : undefined}
           className="fig bg-transparent border-none p-0 w-full"
           style={{
             fontSize: '25px',
@@ -147,9 +149,26 @@ export function ShotForm({ referenceValues, initialValues, submitLabel, onSubmit
     setValues(referenceValues);
   }
 
+  function isValidPositiveNumber(value: string): boolean {
+    const n = Number.parseFloat(value);
+    return Number.isFinite(n) && n > 0;
+  }
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
+    if (values.grind_setting.trim() === '') {
+      setError('Grind is required.');
+      return;
+    }
+    if (
+      !isValidPositiveNumber(values.dose_g) ||
+      !isValidPositiveNumber(values.yield_g) ||
+      !isValidPositiveNumber(values.pull_time_s)
+    ) {
+      setError('Dose, yield, and pull time must be greater than zero.');
+      return;
+    }
     setSaving(true);
     try {
       await onSubmit(values);

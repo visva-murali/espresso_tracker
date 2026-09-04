@@ -114,6 +114,28 @@ describe('ShotForm', () => {
     );
   });
 
+  it('shows an error and does not submit when dose is left blank', async () => {
+    const onSubmit = vi.fn().mockResolvedValue(undefined);
+    const { container } = render(
+      <ShotForm
+        referenceValues={reference}
+        initialValues={{ ...reference, dose_g: '' }}
+        submitLabel="Save shot"
+        onSubmit={onSubmit}
+      />
+    );
+
+    // Bypass the browser's native `required` validation (which would block a
+    // click-triggered submit before our own JS check ever runs) so this test
+    // exercises the app's own validation guard in handleSubmit.
+    fireEvent.submit(container.querySelector('form')!);
+
+    expect(
+      await screen.findByText(/dose, yield, and pull time must be greater than zero/i)
+    ).toBeInTheDocument();
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
   it('expands a tasting note field from the ghost link', () => {
     render(
       <ShotForm

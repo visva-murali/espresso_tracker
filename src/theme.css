@@ -26,8 +26,8 @@
   --color-accent-800: #5a3b0a;
   --color-accent-900: #3a270d;
 
-  --font-heading: "Cormorant Garamond", system-ui, sans-serif;
-  --font-body: "Lora", system-ui, sans-serif;
+  --font-heading: "Cormorant Garamond", Georgia, "Times New Roman", serif;
+  --font-body: "Lora", Georgia, "Times New Roman", serif;
 
   --space-1: 4.6px;
   --space-2: 9.2px;

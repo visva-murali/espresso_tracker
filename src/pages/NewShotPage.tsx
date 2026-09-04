@@ -1,27 +1,10 @@
 import { useEffect, useState, type ChangeEvent } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ShotForm, emptyShotFormValues, type ShotFormValues } from '../components/ShotForm';
-import { BagSelector, type BagIdentity } from '../components/BagSelector';
+import { BagSelector } from '../components/BagSelector';
 import { createShot, listShots, type Shot } from '../lib/shots';
-import { groupShotsByBag, referenceShot as pickReferenceShot, type Bag } from '../lib/shotView';
+import { groupShotsByBag, referenceShot as pickReferenceShot, sameBag, bagKey, toFormValues, type Bag } from '../lib/shotView';
 import { validateVideoFile, uploadShotVideo } from '../lib/videos';
-
-function toFormValues(shot: Shot): ShotFormValues {
-  return {
-    grind_setting: shot.grind_setting,
-    dose_g: String(shot.dose_g),
-    yield_g: String(shot.yield_g),
-    pull_time_s: String(shot.pull_time_s),
-    bean_name: shot.bean_name ?? '',
-    roast_date: shot.roast_date ?? '',
-    rating: shot.rating != null ? String(shot.rating) : '',
-    tasting_note: shot.tasting_note ?? '',
-  };
-}
-
-function bagsMatch(a: BagIdentity, b: BagIdentity): boolean {
-  return a.bean_name === b.bean_name && a.roast_date === b.roast_date;
-}
 
 /**
  * Bean name and roast date for a bag with no shots yet - either a
@@ -87,27 +70,28 @@ export function NewShotPage() {
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [videoError, setVideoError] = useState<string | null>(null);
   const [createdShotId, setCreatedShotId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    listShots().then((shots) => {
-      const grouped = groupShotsByBag(shots);
-      setBags(grouped);
-      if (grouped.length === 0) {
-        setStartingNewBag(true);
-        return;
-      }
+    listShots()
+      .then((shots) => {
+        const grouped = groupShotsByBag(shots);
+        setBags(grouped);
+        if (grouped.length === 0) {
+          setStartingNewBag(true);
+          return;
+        }
 
-      const namedShot = fromShotId ? shots.find((s) => s.id === fromShotId) ?? null : null;
-      if (namedShot) {
-        setSeedShot(namedShot);
-        const bag = grouped.find(
-          (b) => b.bean_name === namedShot.bean_name && b.roast_date === namedShot.roast_date
-        );
-        setSelectedBag(bag ?? grouped[0]);
-      } else {
-        setSelectedBag(grouped[0]);
-      }
-    });
+        const namedShot = fromShotId ? shots.find((s) => s.id === fromShotId) ?? null : null;
+        if (namedShot) {
+          setSeedShot(namedShot);
+          const bag = grouped.find((b) => sameBag(b, namedShot));
+          setSelectedBag(bag ?? grouped[0]);
+        } else {
+          setSelectedBag(grouped[0]);
+        }
+      })
+      .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load bags'));
   }, [fromShotId]);
 
   async function handleVideoChange(e: ChangeEvent<HTMLInputElement>) {
@@ -162,6 +146,7 @@ export function NewShotPage() {
       >
         <button
           type="button"
+          onClick={() => navigate(-1)}
           className="rounded-[var(--radius-sm)] px-1 py-0.5 hover:bg-[var(--color-accent-100)] active:bg-[var(--color-accent-200)]"
           style={{ color: 'var(--color-accent)' }}
         >
@@ -172,6 +157,8 @@ export function NewShotPage() {
         </h1>
         <span style={{ width: '52px' }} />
       </header>
+
+      {error && <p style={{ color: 'var(--color-accent-800)', padding: '0 var(--space-4)' }}>{error}</p>}
 
       {!showNewBagFields && selectedBag && !newBagConfirmed && (
         <div
@@ -194,7 +181,7 @@ export function NewShotPage() {
               bags={bags}
               selected={selectedBag}
               onSelect={(bag) => {
-                const match = bags.find((b) => bagsMatch(b, bag));
+                const match = bags.find((b) => sameBag(b, bag));
                 if (match) {
                   setSelectedBag(match);
                   setSeedShot(null);
@@ -226,13 +213,7 @@ export function NewShotPage() {
 
       {formValues && !showNewBagFields && (
         <ShotForm
-          key={
-            seedShot
-              ? seedShot.id
-              : selectedBag
-              ? `${selectedBag.bean_name ?? ''}|${selectedBag.roast_date ?? ''}`
-              : 'new-bag'
-          }
+          key={seedShot ? seedShot.id : selectedBag ? bagKey(selectedBag) : 'new-bag'}
           referenceValues={formValues}
           initialValues={formValues}
           submitLabel="Save shot"
