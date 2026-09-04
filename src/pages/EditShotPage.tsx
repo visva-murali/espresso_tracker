@@ -44,14 +44,21 @@ export function EditShotPage() {
     navigate(`/shots/${id}`);
   }
 
-  if (error) return <p className="text-red-600">{error}</p>;
+  if (error) return <p style={{ color: 'var(--color-accent-800)' }}>{error}</p>;
   if (shot === undefined) return <p>Loading...</p>;
   if (shot === null) return <p>Shot not found.</p>;
 
+  const values = toFormValues(shot);
+
   return (
-    <div>
-      <h1 className="text-xl font-semibold text-center mt-4">Edit shot</h1>
-      <ShotForm initialValues={toFormValues(shot)} submitLabel="Save changes" onSubmit={handleSubmit} />
+    <div className="max-w-md mx-auto">
+      <h1
+        className="text-center"
+        style={{ fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: '17px', padding: 'var(--space-3) 0' }}
+      >
+        Edit shot
+      </h1>
+      <ShotForm referenceValues={values} initialValues={values} submitLabel="Save changes" onSubmit={handleSubmit} />
     </div>
   );
 }
