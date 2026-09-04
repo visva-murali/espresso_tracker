@@ -10,6 +10,21 @@
 
 **Spec:** `docs/design/README.md` (the full schema: tokens, layout rules, all four screens, decisions table) and `docs/design/classical/readme.md` (the design system's own guide). Both travel with this plan; read `docs/design/README.md` in full before starting - every measurement and rule below is copied from it, but the screen sections there also carry prose context this plan does not repeat.
 
+## Progress (as of 2026-09-04, paused mid-execution)
+
+Being executed via `superpowers:subagent-driven-development` on branch `worktree-design-foundation` (worktree at `.claude/worktrees/design-foundation` off the main repo). Paused after Task 2 - not a blocker, the user stopped execution to conserve credits. Resume by re-entering that worktree and continuing with Task 3.
+
+**Done, committed, reviewed clean:**
+- Task 0 (tokens and fonts) - commit `b4736de`
+- Task 1 (shot-view helpers) - commit `1e5ca54`. Review caught a real latent bug in this plan's own `parsedGrindDelta` code (bare `Number.parseFloat` would have accepted `"2 o'clock"` as `2`, contradicting this plan's own test); fixed in both the shipped code and in this plan's text (search "NUMERIC_GRIND" below) - no further action needed on that front.
+- Task 2 (shared display primitives) - commits `1e5ca54..7c466d7` (one fix round: `BagSelector` was missing hover/pressed states, now fixed).
+
+**Not started:** Task 3 (shot list page) is next, in plan order. Tasks 4, 5, 6 (ShotForm, NewShotPage, EditShotPage) must be dispatched and reviewed as **one combined unit**, not three separate ones - Task 4 alone leaves `NewShotPage.test.tsx` and `EditShotPage.test.tsx` failing until 5 and 6 also land, since all three share one breaking prop-signature change to `ShotForm`. Then Task 7 (shot detail), then Task 8 (trends).
+
+**Two Minor items parked for the final whole-branch review** (do not need fixing now, do not block progress): `src/lib/format.ts`'s `HAIR_SPACE` constant and its two test assertions use a plain space (U+0020) instead of the real Unicode hair space (U+200A) this plan specifies - an implementer transcription slip; fixing it later only touches `format.ts`/`format.test.ts` since every consumer calls the shared `formatMass()` helper rather than hardcoding the character. Also: `bagKey()` helpers (in `shotView.ts` and `BagSelector.tsx`) use a `|` or space separator rather than this plan's exact literal character - functionally equivalent, no fix needed.
+
+**If resuming without the original session's ledger** (e.g. a fresh worktree instead of the one above): the full ruling history, review verdicts, and exact commit ranges live in `.superpowers/sdd/2026-09-04-design-foundation/progress.md` inside that worktree - it is git-ignored, so it only exists there, not on this branch. If that file is gone, this Progress section plus `git log --oneline` on this branch (commits `b4736de`, `1e5ca54`, `7c466d7`, in that order, each a completed task) is the recovery path; the pre-flight conflict scan and rulings the ledger recorded are otherwise summarized above.
+
 ## Global Constraints
 
 - No em dashes anywhere in code comments, docs, commit messages, or written output - use a regular hyphen or restructure the sentence.
@@ -522,7 +537,7 @@ const PAST_PEAK_MIN_DAYS = 28;
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
 
 function bagKey(shot: Pick<Shot, 'bean_name' | 'roast_date'>): string {
-  return `${shot.bean_name ?? ''} ${shot.roast_date ?? ''}`;
+  return `${shot.bean_name ?? ''} ${shot.roast_date ?? ''}`;
 }
 
 /**
@@ -587,7 +602,12 @@ function round1(value: number): number {
   return Math.round(value * 10) / 10;
 }
 
+const NUMERIC_GRIND = /^-?\d+(\.\d+)?$/;
+
 function parsedGrindDelta(shot: Shot, previous: Shot): number | null {
+  if (!NUMERIC_GRIND.test(shot.grind_setting) || !NUMERIC_GRIND.test(previous.grind_setting)) {
+    return null;
+  }
   const a = Number.parseFloat(shot.grind_setting);
   const b = Number.parseFloat(previous.grind_setting);
   return Number.isFinite(a) && Number.isFinite(b) ? round1(a - b) : null;
@@ -971,7 +991,7 @@ type Props = {
 };
 
 function bagKey(bag: BagIdentity): string {
-  return `${bag.bean_name ?? ''} ${bag.roast_date ?? ''}`;
+  return `${bag.bean_name ?? ''} ${bag.roast_date ?? ''}`;
 }
 
 export function BagSelector({ bags, selected, onSelect, label }: Props) {
