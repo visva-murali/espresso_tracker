@@ -58,7 +58,7 @@ export function EditShotPage() {
       >
         Edit shot
       </h1>
-      <ShotForm referenceValues={values} initialValues={values} submitLabel="Save changes" onSubmit={handleSubmit} />
+      <ShotForm key={id} referenceValues={values} initialValues={values} submitLabel="Save changes" onSubmit={handleSubmit} />
     </div>
   );
 }

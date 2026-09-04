@@ -1,8 +1,9 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import { NewShotPage } from './NewShotPage';
 import { createShot, listShots } from '../lib/shots';
+import { uploadShotVideo } from '../lib/videos';
 
 vi.mock('../lib/shots', () => ({
   createShot: vi.fn(),
@@ -36,6 +37,10 @@ const referenceShot = {
 };
 
 describe('NewShotPage', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it('pre-fills the form from the most recently active bag\'s reference shot', async () => {
     vi.mocked(listShots).mockResolvedValue([referenceShot]);
 
@@ -135,5 +140,43 @@ describe('NewShotPage', () => {
     );
 
     await waitFor(() => expect(screen.getByLabelText('Dose')).toHaveValue('15'));
+  });
+
+  it('reuses the created shot on retry after a failed video upload instead of creating a duplicate', async () => {
+    vi.mocked(listShots).mockResolvedValue([referenceShot]);
+    vi.mocked(createShot).mockResolvedValue({ ...referenceShot, id: 'shot-new' });
+    vi.mocked(uploadShotVideo).mockRejectedValueOnce(new Error('upload failed'));
+
+    render(
+      <MemoryRouter>
+        <NewShotPage />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => expect(screen.getByLabelText('Dose')).toHaveValue('18'));
+
+    const videoInput = screen.getByLabelText(/pour video/i);
+    const file = new File(['video-bytes'], 'pour.mp4', { type: 'video/mp4' });
+    await waitFor(() => fireEvent.change(videoInput, { target: { files: [file] } }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save shot' }));
+
+    await waitFor(() => expect(uploadShotVideo).toHaveBeenCalledTimes(1));
+    expect(createShot).toHaveBeenCalledTimes(1);
+
+    vi.mocked(uploadShotVideo).mockResolvedValueOnce({
+      id: 'video-1',
+      shot_id: 'shot-new',
+      user_id: 'user-1',
+      storage_key: 'user-1/shot-new/pour.mp4',
+      content_type: 'video/mp4',
+      size_bytes: 11,
+      uploaded_at: '2026-01-01T00:00:00Z',
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save shot' }));
+
+    await waitFor(() => expect(uploadShotVideo).toHaveBeenCalledTimes(2));
+    expect(createShot).toHaveBeenCalledTimes(1);
+    expect(navigateMock).toHaveBeenCalledWith('/shots/shot-new');
   });
 });

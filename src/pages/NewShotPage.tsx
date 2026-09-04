@@ -64,7 +64,7 @@ function NewBagFields({
       <button
         type="button"
         onClick={onContinue}
-        className="border border-[var(--color-accent)] rounded-[var(--radius-md)]"
+        className="border border-[var(--color-accent)] rounded-[var(--radius-md)] hover:bg-[var(--color-accent-100)] active:bg-[var(--color-accent-200)]"
         style={{ height: '48px', color: 'var(--color-accent)' }}
       >
         Continue
@@ -160,7 +160,11 @@ export function NewShotPage() {
         className="flex justify-between items-center border-b border-[var(--color-divider)]"
         style={{ padding: 'var(--space-3) var(--space-4)' }}
       >
-        <button type="button" style={{ color: 'var(--color-accent)' }}>
+        <button
+          type="button"
+          className="rounded-[var(--radius-sm)] px-1 py-0.5 hover:bg-[var(--color-accent-100)] active:bg-[var(--color-accent-200)]"
+          style={{ color: 'var(--color-accent)' }}
+        >
           Cancel
         </button>
         <h1 style={{ fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: '17px' }}>
@@ -201,7 +205,7 @@ export function NewShotPage() {
             <button
               type="button"
               onClick={() => setStartingNewBag(true)}
-              className="text-sm"
+              className="text-sm rounded-[var(--radius-sm)] px-1 py-0.5 hover:bg-[var(--color-accent-100)] active:bg-[var(--color-accent-200)]"
               style={{ color: 'var(--color-accent)' }}
             >
               Start a new bag
@@ -222,6 +226,13 @@ export function NewShotPage() {
 
       {formValues && !showNewBagFields && (
         <ShotForm
+          key={
+            seedShot
+              ? seedShot.id
+              : selectedBag
+              ? `${selectedBag.bean_name ?? ''}|${selectedBag.roast_date ?? ''}`
+              : 'new-bag'
+          }
           referenceValues={formValues}
           initialValues={formValues}
           submitLabel="Save shot"

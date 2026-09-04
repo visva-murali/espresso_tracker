@@ -94,7 +94,7 @@ function NudgeRow({
         <div style={{ fontSize: '12px', opacity: 0.65 }}>
           {LABEL[field]}
           {changed && (
-            <span style={{ color: 'var(--color-accent-700)' }}> {formatSigned(delta!, decimals)}</span>
+            <span className="fig" style={{ color: 'var(--color-accent-700)' }}> {formatSigned(delta!, decimals)}</span>
           )}
         </div>
         <input
@@ -114,7 +114,7 @@ function NudgeRow({
           type="button"
           aria-label={`Decrease ${directionWord}`}
           onClick={() => nudge(-1)}
-          className="w-12 h-12 border border-[var(--color-divider)] rounded-[var(--radius-md)] text-xl"
+          className="w-12 h-12 border border-[var(--color-divider)] rounded-[var(--radius-md)] text-xl hover:bg-[var(--color-accent-100)] active:bg-[var(--color-accent-200)]"
         >
           &minus;
         </button>
@@ -122,7 +122,7 @@ function NudgeRow({
           type="button"
           aria-label={`Increase ${directionWord}`}
           onClick={() => nudge(1)}
-          className="w-12 h-12 border border-[var(--color-divider)] rounded-[var(--radius-md)] text-xl"
+          className="w-12 h-12 border border-[var(--color-divider)] rounded-[var(--radius-md)] text-xl hover:bg-[var(--color-accent-100)] active:bg-[var(--color-accent-200)]"
         >
           +
         </button>
@@ -136,6 +136,8 @@ export function ShotForm({ referenceValues, initialValues, submitLabel, onSubmit
   const [noteOpen, setNoteOpen] = useState(Boolean(initialValues.tasting_note));
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [hoveredRating, setHoveredRating] = useState<number | null>(null);
+  const [pressedRating, setPressedRating] = useState<number | null>(null);
 
   function set<K extends keyof ShotFormValues>(key: K, value: string) {
     setValues((v) => ({ ...v, [key]: value }));
@@ -166,7 +168,12 @@ export function ShotForm({ referenceValues, initialValues, submitLabel, onSubmit
   return (
     <form onSubmit={handleSubmit}>
       <div className="flex justify-end" style={{ padding: 'var(--space-2) var(--space-4)' }}>
-        <button type="button" onClick={reset} className="text-sm" style={{ color: 'var(--color-accent)' }}>
+        <button
+          type="button"
+          onClick={reset}
+          className="text-sm rounded-[var(--radius-sm)] px-1 py-0.5 hover:bg-[var(--color-accent-100)] active:bg-[var(--color-accent-200)]"
+          style={{ color: 'var(--color-accent)' }}
+        >
           Reset
         </button>
       </div>
@@ -205,21 +212,41 @@ export function ShotForm({ referenceValues, initialValues, submitLabel, onSubmit
         <div className="flex justify-between items-center">
           <span>Rating</span>
           <div className="flex" style={{ gap: '10px' }}>
-            {[1, 2, 3, 4, 5].map((n) => (
-              <button
-                key={n}
-                type="button"
-                aria-label={`Rate ${n}`}
-                onClick={() => set('rating', String(n))}
-                style={{
-                  width: 15,
-                  height: 15,
-                  borderRadius: '50%',
-                  background: n <= Number(values.rating || 0) ? 'var(--color-accent)' : 'transparent',
-                  border: n <= Number(values.rating || 0) ? 'none' : '1px solid var(--color-neutral-400)',
-                }}
-              />
-            ))}
+            {[1, 2, 3, 4, 5].map((n) => {
+              const filled = n <= Number(values.rating || 0);
+              const isPressed = pressedRating === n;
+              const isHovered = hoveredRating === n;
+              const background = filled
+                ? isPressed
+                  ? 'var(--color-accent-800)'
+                  : isHovered
+                  ? 'var(--color-accent-700)'
+                  : 'var(--color-accent)'
+                : isPressed
+                ? 'var(--color-accent-200)'
+                : isHovered
+                ? 'var(--color-accent-100)'
+                : 'transparent';
+              return (
+                <button
+                  key={n}
+                  type="button"
+                  aria-label={`Rate ${n}`}
+                  onClick={() => set('rating', String(n))}
+                  onMouseEnter={() => setHoveredRating(n)}
+                  onMouseLeave={() => setHoveredRating((h) => (h === n ? null : h))}
+                  onMouseDown={() => setPressedRating(n)}
+                  onMouseUp={() => setPressedRating(null)}
+                  style={{
+                    width: 15,
+                    height: 15,
+                    borderRadius: '50%',
+                    background,
+                    border: filled ? 'none' : '1px solid var(--color-neutral-400)',
+                  }}
+                />
+              );
+            })}
           </div>
         </div>
 
@@ -227,7 +254,7 @@ export function ShotForm({ referenceValues, initialValues, submitLabel, onSubmit
           <button
             type="button"
             onClick={() => setNoteOpen(true)}
-            className="text-left text-sm"
+            className="text-left text-sm rounded-[var(--radius-sm)] px-1 py-0.5 -mx-1 hover:bg-[var(--color-accent-100)] active:bg-[var(--color-accent-200)]"
             style={{ color: 'var(--color-accent)' }}
           >
             Add tasting note
@@ -250,7 +277,7 @@ export function ShotForm({ referenceValues, initialValues, submitLabel, onSubmit
         <button
           type="submit"
           disabled={saving}
-          className="block w-full text-center border border-[var(--color-accent)] rounded-[var(--radius-md)]"
+          className="block w-full text-center border border-[var(--color-accent)] rounded-[var(--radius-md)] hover:bg-[var(--color-accent-100)] active:bg-[var(--color-accent-200)]"
           style={{ height: '48px', color: 'var(--color-accent)' }}
         >
           {saving ? 'Saving...' : submitLabel}

@@ -62,4 +62,12 @@ describe('EditShotPage', () => {
     );
     expect(navigateMock).toHaveBeenCalledWith('/shots/shot-1');
   });
+
+  it('shows an error message when loading the shot fails', async () => {
+    vi.mocked(getShot).mockRejectedValue(new Error('Failed to load shot'));
+
+    renderAtShot('shot-1');
+
+    await waitFor(() => expect(screen.getByText('Failed to load shot')).toBeInTheDocument());
+  });
 });
