@@ -32,6 +32,7 @@ export function ShotDetailPage() {
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [videoState, setVideoState] = useState<VideoState>('none');
   const [error, setError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -59,9 +60,10 @@ export function ShotDetailPage() {
   async function handleVideoAttach(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0] ?? null;
     if (!file || !id) return;
+    setActionError(null);
     const result = await validateVideoFile(file);
     if (!result.valid) {
-      setError(result.reason);
+      setActionError(result.reason);
       return;
     }
     setVideoState('uploading');
@@ -72,7 +74,7 @@ export function ShotDetailPage() {
       setVideoUrl(url);
       setVideoState('ready');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to upload video');
+      setActionError(err instanceof Error ? err.message : 'Failed to upload video');
       setVideoState('none');
     }
   }
@@ -80,11 +82,12 @@ export function ShotDetailPage() {
   async function handleDelete() {
     if (!id) return;
     if (!window.confirm('Delete this shot? This cannot be undone.')) return;
+    setActionError(null);
     try {
       await deleteShot(id);
       navigate('/');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete shot');
+      setActionError(err instanceof Error ? err.message : 'Failed to delete shot');
     }
   }
 
@@ -124,6 +127,18 @@ export function ShotDetailPage() {
           </Link>
         </div>
       </header>
+
+      {actionError && (
+        <p
+          style={{
+            color: 'var(--color-accent-800)',
+            fontSize: '13px',
+            padding: 'var(--space-2) var(--space-4) 0',
+          }}
+        >
+          {actionError}
+        </p>
+      )}
 
       <div style={{ padding: 'var(--space-4) var(--space-4) var(--space-3)' }}>
         <div
