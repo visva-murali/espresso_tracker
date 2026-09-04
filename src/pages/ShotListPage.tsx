@@ -1,12 +1,115 @@
+// src/pages/ShotListPage.tsx
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { listShots, type Shot } from '../lib/shots';
+import { groupShotsByBag, bagState, ratio, daysSinceRoast, type Bag } from '../lib/shotView';
+import { formatMass, formatSigned, formatRoastAge } from '../lib/format';
 import { useAuth } from '../context/AuthContext';
+import { SearchIcon, MenuIcon, VideoIcon } from '../components/icons';
+import { RatioFigure } from '../components/shot-display/RatioFigure';
+import { PullTimeFigure } from '../components/shot-display/PullTimeFigure';
+import { RatingDots } from '../components/shot-display/RatingDots';
+import { BagTag } from '../components/shot-display/BagTag';
+
+type Filter = 'active' | 'all';
+
+function bagTitle(bag: Bag): string {
+  return bag.bean_name ?? 'Unlabeled';
+}
+
+function formatTimestamp(iso: string): string {
+  const date = new Date(iso);
+  const weekday = date.toLocaleDateString(undefined, { weekday: 'short' });
+  const time = date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+  return `${weekday} ${time}`;
+}
+
+function ShotRow({ shot, previous }: { shot: Shot; previous: Shot | null }) {
+  const doseDelta = previous ? formatSigned(shot.dose_g - previous.dose_g, 1) : null;
+  const yieldDelta = previous ? formatSigned(shot.yield_g - previous.yield_g, 1) : null;
+
+  return (
+    <Link
+      to={`/shots/${shot.id}`}
+      className="grid items-center border-t border-[var(--color-divider)] hover:bg-[var(--color-surface)] active:bg-[var(--color-accent-100)]"
+      style={{
+        gridTemplateColumns: '1fr auto',
+        gap: 'var(--space-3)',
+        padding: 'var(--space-3) var(--space-4)',
+        minHeight: '64px',
+      }}
+    >
+      <div className="flex flex-col gap-1">
+        <div className="flex items-baseline" style={{ gap: '14px' }}>
+          <RatioFigure value={ratio(shot)} />
+          <PullTimeFigure seconds={shot.pull_time_s} />
+        </div>
+        <div className="num text-[12.5px]" style={{ color: 'var(--color-neutral-700)' }}>
+          {formatMass(shot.dose_g)}
+          {doseDelta && (
+            <span className="fig" style={{ color: 'var(--color-accent-700)' }}> {doseDelta}</span>
+          )}
+          {' → '}
+          {formatMass(shot.yield_g)}
+          {yieldDelta && (
+            <span className="fig" style={{ color: 'var(--color-accent-700)' }}> {yieldDelta}</span>
+          )}
+          {` · grind ${shot.grind_setting}`}
+        </div>
+      </div>
+      <div className="flex flex-col items-end" style={{ gap: '4px' }}>
+        {shot.rating != null ? (
+          <RatingDots rating={shot.rating} />
+        ) : (
+          <VideoIcon size={15} style={{ color: 'var(--color-accent)' }} />
+        )}
+        <span className="num text-[11px]" style={{ color: 'var(--color-neutral-600)' }}>
+          {formatTimestamp(shot.created_at)}
+        </span>
+      </div>
+    </Link>
+  );
+}
+
+function BagGroup({ bag }: { bag: Bag }) {
+  const state = bagState(bag.shots);
+  const age = bag.roast_date ? daysSinceRoast(bag.roast_date) : null;
+
+  return (
+    <section>
+      <div
+        className="flex justify-between items-baseline"
+        style={{ padding: 'var(--space-4) var(--space-4) var(--space-2)' }}
+      >
+        <div>
+          <div
+            style={{ fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: '19px' }}
+          >
+            {bagTitle(bag)}
+          </div>
+          <div
+            className="num"
+            style={{ fontSize: '11px', letterSpacing: '0.08em', textTransform: 'uppercase', opacity: 0.55 }}
+          >
+            {age != null ? `${formatRoastAge(age)} · ` : ''}
+            {bag.shots.length} shots
+          </div>
+        </div>
+        <BagTag state={state} />
+      </div>
+      {bag.shots.map((shot, i) => (
+        <ShotRow key={shot.id} shot={shot} previous={bag.shots[i + 1] ?? null} />
+      ))}
+    </section>
+  );
+}
 
 export function ShotListPage() {
-  const { user, signOut } = useAuth();
+  const { signOut } = useAuth();
   const [shots, setShots] = useState<Shot[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [filter, setFilter] = useState<Filter>('active');
+  const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
     listShots()
@@ -14,31 +117,104 @@ export function ShotListPage() {
       .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load shots'));
   }, []);
 
+  const bags = shots ? groupShotsByBag(shots) : [];
+  const visibleBags =
+    filter === 'active' ? bags.filter((bag) => bagState(bag.shots) !== 'past-peak') : bags;
+
   return (
-    <div className="max-w-md mx-auto p-4 flex flex-col gap-4">
-      <div className="flex justify-between items-center">
-        <span>{user?.email}</span>
-        <button onClick={() => signOut()} className="border rounded px-3 py-1">
-          Sign out
-        </button>
+    <div className="max-w-md mx-auto flex flex-col" style={{ paddingBottom: '88px' }}>
+      <header
+        className="flex justify-between items-center border-b border-[var(--color-divider)]"
+        style={{ padding: '14px var(--space-4) var(--space-3)' }}
+      >
+        <h1 style={{ fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: '19px' }}>
+          Shots
+        </h1>
+        <div className="flex items-center relative" style={{ gap: 'var(--space-2)' }}>
+          <button
+            type="button"
+            aria-label="Search"
+            className="w-9 h-9 flex items-center justify-center border border-[var(--color-divider)] rounded-[var(--radius-md)] hover:bg-[var(--color-accent-100)] active:bg-[var(--color-accent-200)]"
+          >
+            <SearchIcon />
+          </button>
+          <button
+            type="button"
+            aria-label="Menu"
+            aria-expanded={menuOpen}
+            onClick={() => setMenuOpen((o) => !o)}
+            className="w-9 h-9 flex items-center justify-center border border-[var(--color-divider)] rounded-[var(--radius-md)] hover:bg-[var(--color-accent-100)] active:bg-[var(--color-accent-200)]"
+          >
+            <MenuIcon />
+          </button>
+          {menuOpen && (
+            <ul
+              className="absolute right-0 top-full mt-1 z-10 min-w-[160px] bg-[var(--color-bg)] border border-[var(--color-divider)] rounded-[var(--radius-md)] shadow-[var(--shadow-md)]"
+            >
+              <li>
+                <Link
+                  to="/trends"
+                  className="block px-3 py-2 text-sm hover:bg-[var(--color-accent-100)] active:bg-[var(--color-accent-200)]"
+                >
+                  Trends
+                </Link>
+              </li>
+              <li>
+                <button
+                  type="button"
+                  onClick={() => signOut()}
+                  className="block w-full text-left px-3 py-2 text-sm hover:bg-[var(--color-accent-100)] active:bg-[var(--color-accent-200)]"
+                >
+                  Sign out
+                </button>
+              </li>
+            </ul>
+          )}
+        </div>
+      </header>
+
+      <div
+        className="flex border border-[var(--color-divider)] rounded-[var(--radius-md)]"
+        style={{ margin: 'var(--space-3) var(--space-4) var(--space-2)' }}
+      >
+        {(['active', 'all'] as const).map((value) => (
+          <button
+            key={value}
+            type="button"
+            onClick={() => setFilter(value)}
+            className="flex-1 text-sm py-2 hover:bg-[var(--color-accent-100)] active:bg-[var(--color-accent-200)]"
+            style={
+              filter === value
+                ? { color: 'var(--color-accent)', boxShadow: 'inset 0 0 0 1px var(--color-accent)' }
+                : {}
+            }
+          >
+            {value === 'active' ? 'Active bags' : 'All shots'}
+          </button>
+        ))}
       </div>
-      <Link to="/shots/new" className="bg-black text-white rounded px-4 py-2 text-center">
-        Log a shot
-      </Link>
-      {error && <p className="text-red-600">{error}</p>}
-      {!shots && !error && <p>Loading...</p>}
-      {shots?.length === 0 && <p>No shots logged yet.</p>}
-      {shots && shots.length > 0 && (
-        <ul className="flex flex-col gap-2">
-          {shots.map((shot) => (
-            <li key={shot.id}>
-              <Link to={`/shots/${shot.id}`} className="block border rounded px-3 py-2">
-                {shot.grind_setting} - {shot.dose_g}g in / {shot.yield_g}g out - {shot.pull_time_s}s
-              </Link>
-            </li>
-          ))}
-        </ul>
+
+      {error && <p style={{ color: 'var(--color-accent-800)' }}>{error}</p>}
+      {!shots && !error && <p style={{ padding: 'var(--space-4)' }}>Loading...</p>}
+      {shots && shots.length === 0 && (
+        <p style={{ padding: 'var(--space-4)' }}>No shots logged yet.</p>
       )}
+      {visibleBags.map((bag) => (
+        <BagGroup key={`${bag.bean_name ?? ''}-${bag.roast_date ?? ''}`} bag={bag} />
+      ))}
+
+      <div
+        className="fixed bottom-0 left-0 right-0 border-t border-[var(--color-divider)] bg-[var(--color-bg)]"
+        style={{ padding: 'var(--space-3) var(--space-4) var(--space-6)' }}
+      >
+        <Link
+          to="/shots/new"
+          className="block w-full text-center border border-[var(--color-accent)] rounded-[var(--radius-md)] hover:bg-[var(--color-accent-100)] active:bg-[var(--color-accent-200)]"
+          style={{ height: '48px', lineHeight: '48px', color: 'var(--color-accent)' }}
+        >
+          Log a shot
+        </Link>
+      </div>
     </div>
   );
 }
