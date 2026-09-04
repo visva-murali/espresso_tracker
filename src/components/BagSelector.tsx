@@ -26,7 +26,7 @@ export function BagSelector({ bags, selected, onSelect, label }: Props) {
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
-        className="h-9 px-3 border border-[var(--color-divider)] rounded-[var(--radius-md)] text-sm"
+        className="h-9 px-3 border border-[var(--color-divider)] rounded-[var(--radius-md)] text-sm hover:bg-[var(--color-accent-100)] active:bg-[var(--color-accent-200)]"
       >
         {label}
       </button>
@@ -45,7 +45,7 @@ export function BagSelector({ bags, selected, onSelect, label }: Props) {
                   onSelect(bag);
                   setOpen(false);
                 }}
-                className="block w-full text-left px-3 py-2 text-sm hover:bg-[var(--color-accent-100)]"
+                className="block w-full text-left px-3 py-2 text-sm hover:bg-[var(--color-accent-100)] active:bg-[var(--color-accent-200)]"
               >
                 {bag.bean_name ?? 'Unlabeled'}
               </button>
