@@ -10,6 +10,20 @@
 
 **Spec:** `docs/mvp_spec.md` and `docs/mvp-design.md` (design doc this plan implements; read both before starting).
 
+## Progress (as of 2026-09-04, complete)
+
+All 12 tasks are done, committed, and deployed. v1 is live on Vercel and the
+`docs/mvp-design.md` section 1 done checklist passed. The unchecked `- [ ]`
+boxes below are left as the historical record of the plan as executed, not
+outstanding work; `git log` from commit `1a7fda1` onward is the task-by-task
+trail. Phase 2's design-foundation pass (which retrofitted every v1 screen
+onto the Classical design system and added the Trends screen) has since also
+landed on `main` - see `docs/superpowers/plans/2026-09-04-design-foundation.md`.
+
+This file was originally committed as `docs/mvp-plan.md`; it was moved here on
+2026-09-06 to match the `superpowers:writing-plans` convention
+(`docs/superpowers/plans/YYYY-MM-DD-<feature>.md`).
+
 ## Global Constraints
 
 - Stack is fixed: React + Vite + TypeScript, Tailwind CSS, Supabase (Postgres + Auth + Storage + RLS), Vercel hosting, Google OAuth via Supabase Auth. No custom backend or API layer - the frontend talks to Supabase directly.
