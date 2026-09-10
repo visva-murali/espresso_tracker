@@ -252,6 +252,8 @@ describe('ShotDetailPage', () => {
         bean_name: shot.bean_name,
         roast_date: shot.roast_date,
         target_ratio: 2.5,
+        target_pull_time_low_s: null,
+        target_pull_time_high_s: null,
         created_at: '2026-09-04T00:00:00Z',
         updated_at: '2026-09-04T00:00:00Z',
       },

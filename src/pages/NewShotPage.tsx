@@ -138,7 +138,7 @@ export function NewShotPage() {
       setCreatedShotId(shotId);
     }
     if (target !== targetForBag(bagTargets, bagRef)) {
-      await setBagTarget(bagRef, target);
+      await setBagTarget(bagRef, { targetRatio: target, pullTime: null });
     }
     if (videoFile) {
       await uploadShotVideo(shotId, videoFile);

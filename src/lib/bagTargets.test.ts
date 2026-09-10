@@ -29,45 +29,57 @@ afterAll(async () => {
 });
 
 describe('bagTargets', () => {
-  it('sets a target and lists it back', async () => {
-    await setBagTarget(kenya, 2);
-    const targets = await listBagTargets();
-    const match = targets.find(
+  it('sets a ratio target and lists it back', async () => {
+    await setBagTarget(kenya, { targetRatio: 2, pullTime: null });
+    const match = (await listBagTargets()).find(
       (t) => t.bean_name === kenya.bean_name && t.roast_date === kenya.roast_date
     );
-    expect(match).toBeTruthy();
     expect(Number(match!.target_ratio)).toBe(2);
+    expect(match!.target_pull_time_low_s).toBeNull();
   });
 
-  it('overwrites the existing row instead of creating a second one', async () => {
-    await setBagTarget(kenya, 2);
-    await setBagTarget(kenya, 2.5);
+  it('sets a pull-time range with no ratio target', async () => {
+    await setBagTarget(kenya, { targetRatio: null, pullTime: [26, 31] });
+    const match = (await listBagTargets()).find(
+      (t) => t.bean_name === kenya.bean_name && t.roast_date === kenya.roast_date
+    );
+    expect(match!.target_ratio).toBeNull();
+    expect(match!.target_pull_time_low_s).toBe(26);
+    expect(match!.target_pull_time_high_s).toBe(31);
+  });
+
+  it('overwrites the row rather than adding a second', async () => {
+    await setBagTarget(kenya, { targetRatio: 2, pullTime: null });
+    await setBagTarget(kenya, { targetRatio: 2.5, pullTime: [25, 30] });
     const matches = (await listBagTargets()).filter(
       (t) => t.bean_name === kenya.bean_name && t.roast_date === kenya.roast_date
     );
     expect(matches).toHaveLength(1);
     expect(Number(matches[0].target_ratio)).toBe(2.5);
+    expect(matches[0].target_pull_time_low_s).toBe(25);
   });
 
-  it('clears a target when passed null', async () => {
-    await setBagTarget(kenya, 2.5);
-    await setBagTarget(kenya, null);
+  it('deletes the row when every field is cleared', async () => {
+    await setBagTarget(kenya, { targetRatio: 2, pullTime: [26, 31] });
+    await setBagTarget(kenya, { targetRatio: null, pullTime: null });
     const matches = (await listBagTargets()).filter(
       (t) => t.bean_name === kenya.bean_name && t.roast_date === kenya.roast_date
     );
     expect(matches).toHaveLength(0);
   });
 
-  it('is a no-op when clearing a bag that has no target', async () => {
-    await expect(setBagTarget(unlabeled, null)).resolves.toBeUndefined();
+  it('is a no-op when clearing a bag that has no row', async () => {
+    await expect(
+      setBagTarget(unlabeled, { targetRatio: null, pullTime: null })
+    ).resolves.toBeUndefined();
   });
 
   it('handles the null-keyed (unlabeled) bag', async () => {
-    await setBagTarget(unlabeled, 3);
+    await setBagTarget(unlabeled, { targetRatio: 3, pullTime: null });
     const match = (await listBagTargets()).find(
       (t) => t.bean_name === null && t.roast_date === null
     );
     expect(Number(match?.target_ratio)).toBe(3);
-    await setBagTarget(unlabeled, null);
+    await setBagTarget(unlabeled, { targetRatio: null, pullTime: null });
   });
 });

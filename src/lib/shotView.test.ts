@@ -217,6 +217,8 @@ function makeTarget(overrides: Partial<BagTarget>): BagTarget {
     bean_name: 'Kenya Nyeri AA',
     roast_date: '2026-08-23',
     target_ratio: 2,
+    target_pull_time_low_s: null,
+    target_pull_time_high_s: null,
     created_at: '2026-09-04T07:42:00Z',
     updated_at: '2026-09-04T07:42:00Z',
     ...overrides,

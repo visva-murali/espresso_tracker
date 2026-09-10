@@ -48,7 +48,7 @@ export function EditShotPage() {
     });
     const bagRef = { bean_name: values.bean_name || null, roast_date: values.roast_date || null };
     if (target !== targetForBag(bagTargets, bagRef)) {
-      await setBagTarget(bagRef, target);
+      await setBagTarget(bagRef, { targetRatio: target, pullTime: null });
     }
     navigate(`/shots/${id}`);
   }

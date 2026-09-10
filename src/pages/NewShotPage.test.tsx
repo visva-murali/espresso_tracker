@@ -225,6 +225,8 @@ describe('NewShotPage', () => {
         bean_name: referenceShot.bean_name,
         roast_date: referenceShot.roast_date,
         target_ratio: 2,
+        target_pull_time_low_s: null,
+        target_pull_time_high_s: null,
         created_at: '2026-09-04T00:00:00Z',
         updated_at: '2026-09-04T00:00:00Z',
       },
@@ -259,7 +261,7 @@ describe('NewShotPage', () => {
     await waitFor(() =>
       expect(setBagTarget).toHaveBeenCalledWith(
         { bean_name: referenceShot.bean_name, roast_date: referenceShot.roast_date },
-        3
+        { targetRatio: 3, pullTime: null }
       )
     );
   });
