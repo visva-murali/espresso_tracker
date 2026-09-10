@@ -1,12 +1,14 @@
 // src/pages/ShotListPage.test.tsx
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import { ShotListPage } from './ShotListPage';
 import { listShots } from '../lib/shots';
+import { listBagTargets } from '../lib/bagTargets';
 import { useAuth } from '../context/AuthContext';
 
 vi.mock('../lib/shots', () => ({ listShots: vi.fn() }));
+vi.mock('../lib/bagTargets', () => ({ listBagTargets: vi.fn() }));
 vi.mock('../context/AuthContext', () => ({ useAuth: vi.fn() }));
 
 const baseShot = {
@@ -34,6 +36,10 @@ function mockAuth() {
 }
 
 describe('ShotListPage', () => {
+  beforeEach(() => {
+    vi.mocked(listBagTargets).mockResolvedValue([]);
+  });
+
   it('groups shots under a bag heading showing the bean name and shot count', async () => {
     mockAuth();
     vi.mocked(listShots).mockResolvedValue([baseShot]);
@@ -149,5 +155,51 @@ describe('ShotListPage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'All shots' }));
     expect(screen.getByText('Old Bag')).toBeInTheDocument();
+  });
+
+  it('shows Dialed when recent shots sit on the bag target', async () => {
+    mockAuth();
+    const onTarget = [
+      { ...baseShot, id: 's2', dose_g: 18, yield_g: 45, pull_time_s: 30, roast_date: null },
+      { ...baseShot, id: 's1', dose_g: 18, yield_g: 45, pull_time_s: 29, roast_date: null },
+    ];
+    vi.mocked(listShots).mockResolvedValue(onTarget);
+    vi.mocked(listBagTargets).mockResolvedValue([
+      {
+        id: 't1',
+        user_id: 'user-1',
+        bean_name: baseShot.bean_name,
+        roast_date: null,
+        target_ratio: 2.5,
+        created_at: '2026-09-04T00:00:00Z',
+        updated_at: '2026-09-04T00:00:00Z',
+      },
+    ]);
+
+    render(
+      <MemoryRouter>
+        <ShotListPage />
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText('Dialed')).toBeInTheDocument();
+  });
+
+  it('falls back to convergence when the bag has no target', async () => {
+    mockAuth();
+    const spread = [
+      { ...baseShot, id: 's2', dose_g: 18, yield_g: 45, pull_time_s: 30, roast_date: null },
+      { ...baseShot, id: 's1', dose_g: 18, yield_g: 30, pull_time_s: 20, roast_date: null },
+    ];
+    vi.mocked(listShots).mockResolvedValue(spread);
+    vi.mocked(listBagTargets).mockResolvedValue([]);
+
+    render(
+      <MemoryRouter>
+        <ShotListPage />
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText('Dialing')).toBeInTheDocument();
   });
 });
