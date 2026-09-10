@@ -36,6 +36,31 @@ export function niceDomain(
   return [lo - pad, hi + pad];
 }
 
+/**
+ * Vertical domain for the ratio-against-time chart. With a target set, the
+ * window is a fixed band centered on the target (`target +/- half`) so the
+ * goal line sits mid-plot and normal shot-to-shot scatter reads as a small
+ * cluster around it rather than a dramatic spread; an edge is pushed out
+ * only when a shot lands outside the band. With no target there is nothing
+ * to center on, so fall back to a wide `niceDomain`.
+ */
+export function ratioDomain(
+  ratios: number[],
+  target: number | null,
+  half = 0.5,
+  minSpan = 0.8
+): [number, number] {
+  if (target == null) return niceDomain(ratios, minSpan);
+
+  let lo = target - half;
+  let hi = target + half;
+  for (const r of ratios) {
+    if (r < lo) lo = r - 0.1;
+    if (r > hi) hi = r + 0.1;
+  }
+  return [lo, hi];
+}
+
 export function medianOf(values: number[]): number {
   if (values.length === 0) return 0;
   const sorted = [...values].sort((a, b) => a - b);

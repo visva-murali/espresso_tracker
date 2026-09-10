@@ -1,6 +1,6 @@
 // src/lib/chartScale.test.ts
 import { describe, it, expect } from 'vitest';
-import { scaleLinear, medianOf, niceDomain } from './chartScale';
+import { scaleLinear, medianOf, niceDomain, ratioDomain } from './chartScale';
 
 describe('scaleLinear', () => {
   it('maps a domain value to the corresponding range value', () => {
@@ -35,6 +35,28 @@ describe('niceDomain', () => {
 
   it('falls back to [0, minSpan] for an empty set', () => {
     expect(niceDomain([], 4)).toEqual([0, 4]);
+  });
+});
+
+describe('ratioDomain', () => {
+  it('centers a fixed window on the target when every shot is inside it', () => {
+    expect(ratioDomain([2.05, 2.08], 2.0)).toEqual([1.5, 2.5]);
+  });
+
+  it('extends only the upper edge to reach a shot above the window', () => {
+    const [lo, hi] = ratioDomain([2.05, 2.7], 2.0);
+    expect(lo).toBe(1.5);
+    expect(hi).toBeCloseTo(2.8, 10);
+  });
+
+  it('extends only the lower edge to reach a shot below the window', () => {
+    const [lo, hi] = ratioDomain([1.3, 2.05], 2.0);
+    expect(lo).toBeCloseTo(1.2, 10);
+    expect(hi).toBe(2.5);
+  });
+
+  it('falls back to a wide niceDomain when no target is set', () => {
+    expect(ratioDomain([2.0, 2.1], null)).toEqual(niceDomain([2.0, 2.1], 0.8));
   });
 });
 

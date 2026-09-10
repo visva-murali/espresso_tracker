@@ -133,6 +133,95 @@ describe('TrendsPage', () => {
     });
   });
 
+  it('labels the ratio y-axis with the scale bounds, not the raw shot ratios', async () => {
+    // Two shots ~1:2.0, no target. The old chart drew both axis labels from
+    // the shot ratios, so they both read "2.0" and the axis looked collapsed.
+    const nearIdentical = [36, 36.6].map((yield_g, i) => ({
+      ...shots[0],
+      id: `y${i}`,
+      dose_g: 18,
+      yield_g,
+    }));
+    vi.mocked(listShots).mockResolvedValue(nearIdentical);
+
+    render(
+      <MemoryRouter>
+        <TrendsPage />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => expect(screen.getByText('Ratio against time')).toBeInTheDocument());
+
+    const scatter = screen.getByText('Ratio against time').parentElement!.querySelector('svg')!;
+    const top = Number(scatter.querySelector('text[y="16"]')!.textContent);
+    const bottom = Number(scatter.querySelector('text[y="160"]')!.textContent);
+    // Labels bracket the plotted ratios (~2.00 and ~2.03) instead of sitting on them.
+    expect(bottom).toBeLessThan(2.0);
+    expect(top).toBeGreaterThan(2.04);
+  });
+
+  it('spans a full unit centered on the target ratio when one is set', async () => {
+    const bagShots = [40.5, 41].map((yield_g, i) => ({
+      ...shots[0],
+      id: `t${i}`,
+      dose_g: 18,
+      yield_g, // ratios ~2.25 / ~2.28, both inside a 2.0 +/- 0.5 window
+    }));
+    vi.mocked(listShots).mockResolvedValue(bagShots);
+    vi.mocked(listBagTargets).mockResolvedValue([
+      {
+        id: 't1',
+        user_id: 'user-1',
+        bean_name: shots[0].bean_name,
+        roast_date: shots[0].roast_date,
+        target_ratio: 2.0,
+        target_pull_time_low_s: null,
+        target_pull_time_high_s: null,
+        created_at: '2026-09-04T00:00:00Z',
+        updated_at: '2026-09-04T00:00:00Z',
+      },
+    ]);
+
+    render(
+      <MemoryRouter>
+        <TrendsPage />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => expect(screen.getByText('Ratio against time')).toBeInTheDocument());
+    await waitFor(() => {
+      const svg = screen.getByText('Ratio against time').parentElement!.querySelector('svg')!;
+      expect(svg.querySelector('line[stroke-dasharray]')).toBeTruthy();
+    });
+
+    const scatter = screen.getByText('Ratio against time').parentElement!.querySelector('svg')!;
+    expect(scatter.querySelector('text[y="16"]')!.textContent).toBe('2.5');
+    expect(scatter.querySelector('text[y="160"]')!.textContent).toBe('1.5');
+  });
+
+  it('labels the ratio x-axis with the padded time domain, not the raw shot times', async () => {
+    const timed = [24, 30].map((pull_time_s, i) => ({
+      ...shots[0],
+      id: `x${i}`,
+      pull_time_s,
+    }));
+    vi.mocked(listShots).mockResolvedValue(timed);
+
+    render(
+      <MemoryRouter>
+        <TrendsPage />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => expect(screen.getByText('Ratio against time')).toBeInTheDocument());
+
+    const scatter = screen.getByText('Ratio against time').parentElement!.querySelector('svg')!;
+    const [left, right] = [...scatter.querySelectorAll('text[y="176"]')].map((t) => t.textContent);
+    // niceDomain([24, 30], 4) pads to [23.4, 30.6]
+    expect(left).toBe('23s');
+    expect(right).toBe('31s');
+  });
+
   it('states the running median in the pull-time consistency caption', async () => {
     const timed = [26, 24, 28, 24, 30].map((t, i) => ({
       ...shots[0],

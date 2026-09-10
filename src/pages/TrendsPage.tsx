@@ -12,7 +12,7 @@ import {
   type Bag,
 } from '../lib/shotView';
 import { listBagTargets, type BagTarget } from '../lib/bagTargets';
-import { scaleLinear, medianOf, niceDomain } from '../lib/chartScale';
+import { scaleLinear, medianOf, niceDomain, ratioDomain } from '../lib/chartScale';
 import { BagSelector } from '../components/BagSelector';
 import { LoadingBar } from '../components/LoadingBar';
 
@@ -45,18 +45,14 @@ function RatioOverTimeChart({
   const times = shots.map((s) => s.pull_time_s);
   const ratios = shots.map((s) => ratio(s));
 
-  // Pad the domain (and widen it when every shot landed on the same number)
-  // so points never stack on the axis or collapse to a single pixel. Fold
-  // the target into the y-domain input so the goal line stays on canvas.
+  // Pad the time axis so points never stack on the edge. For the ratio axis,
+  // center a fixed window on the target when one is set so the goal line sits
+  // mid-plot and normal scatter reads as a small cluster, not a dramatic
+  // spread; with no target, fall back to a wide domain around the shots.
   const [xLo, xHi] = niceDomain(times, 4);
-  const [yLo, yHi] = niceDomain(targetRatio != null ? [...ratios, targetRatio] : ratios, 0.3);
+  const [yLo, yHi] = ratioDomain(ratios, targetRatio);
   const x = scaleLinear(xLo, xHi, 40, 328);
   const y = scaleLinear(yLo, yHi, 158, 18);
-
-  const minTime = Math.round(Math.min(...times));
-  const maxTime = Math.round(Math.max(...times));
-  const minRatio = Math.min(...ratios);
-  const maxRatio = Math.max(...ratios);
 
   return (
     <svg viewBox="0 0 340 190" width="100%" style={{ overflow: 'visible' }}>
@@ -97,19 +93,19 @@ function RatioOverTimeChart({
       ))}
 
       <text className="num" x="4" y="16" style={TICK_STYLE}>
-        {maxRatio.toFixed(1)}
+        {yHi.toFixed(1)}
       </text>
       <text x="4" y="30" style={{ ...TICK_STYLE, fontSize: '8.5px', letterSpacing: '0.08em' }}>
         RATIO
       </text>
       <text className="num" x="4" y="160" style={TICK_STYLE}>
-        {minRatio.toFixed(1)}
+        {yLo.toFixed(1)}
       </text>
       <text className="num" x="40" y="176" style={TICK_STYLE}>
-        {minTime}s
+        {Math.round(xLo)}s
       </text>
       <text className="num" x="328" y="176" textAnchor="end" style={TICK_STYLE}>
-        {maxTime}s
+        {Math.round(xHi)}s
       </text>
     </svg>
   );
