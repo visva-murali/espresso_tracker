@@ -204,4 +204,64 @@ describe('ShotListPage', () => {
 
     expect(await screen.findByText('Dialing')).toBeInTheDocument();
   });
+
+  it('shows Dialed when both recent shots land in the bag pull-time range', async () => {
+    mockAuth();
+    const inRange = [
+      { ...baseShot, id: 's2', dose_g: 18, yield_g: 45, pull_time_s: 29, roast_date: null },
+      { ...baseShot, id: 's1', dose_g: 18, yield_g: 45, pull_time_s: 27, roast_date: null },
+    ];
+    vi.mocked(listShots).mockResolvedValue(inRange);
+    vi.mocked(listBagTargets).mockResolvedValue([
+      {
+        id: 't1',
+        user_id: 'user-1',
+        bean_name: baseShot.bean_name,
+        roast_date: null,
+        target_ratio: null,
+        target_pull_time_low_s: 26,
+        target_pull_time_high_s: 31,
+        created_at: '2026-09-04T00:00:00Z',
+        updated_at: '2026-09-04T00:00:00Z',
+      },
+    ]);
+
+    render(
+      <MemoryRouter>
+        <ShotListPage />
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText('Dialed')).toBeInTheDocument();
+  });
+
+  it('shows Dialing when a recent shot falls outside the pull-time range', async () => {
+    mockAuth();
+    const out = [
+      { ...baseShot, id: 's2', dose_g: 18, yield_g: 45, pull_time_s: 22, roast_date: null },
+      { ...baseShot, id: 's1', dose_g: 18, yield_g: 45, pull_time_s: 23, roast_date: null },
+    ];
+    vi.mocked(listShots).mockResolvedValue(out);
+    vi.mocked(listBagTargets).mockResolvedValue([
+      {
+        id: 't1',
+        user_id: 'user-1',
+        bean_name: baseShot.bean_name,
+        roast_date: null,
+        target_ratio: null,
+        target_pull_time_low_s: 26,
+        target_pull_time_high_s: 31,
+        created_at: '2026-09-04T00:00:00Z',
+        updated_at: '2026-09-04T00:00:00Z',
+      },
+    ]);
+
+    render(
+      <MemoryRouter>
+        <ShotListPage />
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText('Dialing')).toBeInTheDocument();
+  });
 });

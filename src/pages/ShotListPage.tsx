@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { listShots, type Shot } from '../lib/shots';
-import { groupShotsByBag, bagState, bagLabel, ratio, daysSinceRoast, deltas, bagKey, targetForBag, type Bag } from '../lib/shotView';
+import { groupShotsByBag, bagState, bagLabel, ratio, daysSinceRoast, deltas, bagKey, targetForBag, pullTimeRangeForBag, type Bag } from '../lib/shotView';
 import { listBagTargets, type BagTarget } from '../lib/bagTargets';
 import { formatMass, formatSigned, formatRoastAge } from '../lib/format';
 import { useAuth } from '../context/AuthContext';
@@ -74,7 +74,10 @@ function ShotRow({ shot, previous }: { shot: Shot; previous: Shot | null }) {
 }
 
 function BagGroup({ bag, targets }: { bag: Bag; targets: BagTarget[] }) {
-  const state = bagState(bag.shots, { targetRatio: targetForBag(targets, bag) });
+  const state = bagState(bag.shots, {
+    targetRatio: targetForBag(targets, bag),
+    pullTimeRange: pullTimeRangeForBag(targets, bag),
+  });
   const age = bag.roast_date ? daysSinceRoast(bag.roast_date) : null;
 
   return (
@@ -127,7 +130,11 @@ export function ShotListPage() {
   const visibleBags =
     filter === 'active'
       ? bags.filter(
-          (bag) => bagState(bag.shots, { targetRatio: targetForBag(bagTargets, bag) }) !== 'past-peak'
+          (bag) =>
+            bagState(bag.shots, {
+              targetRatio: targetForBag(bagTargets, bag),
+              pullTimeRange: pullTimeRangeForBag(bagTargets, bag),
+            }) !== 'past-peak'
         )
       : bags;
 
