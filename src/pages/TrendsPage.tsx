@@ -3,19 +3,45 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { listShots, type Shot } from '../lib/shots';
 import { groupShotsByBag, ratio, sameBag, type Bag } from '../lib/shotView';
-import { scaleLinear, medianOf } from '../lib/chartScale';
+import { scaleLinear, medianOf, niceDomain } from '../lib/chartScale';
 import { BagSelector } from '../components/BagSelector';
+
+const KICKER_STYLE = {
+  fontSize: '11px',
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+  opacity: 0.55,
+} as const;
+
+const CAPTION_STYLE = { fontSize: '12.5px', opacity: 0.7 } as const;
+
+const TICK_STYLE = {
+  fontFamily: 'var(--font-body)',
+  fontSize: '10px',
+  fill: 'var(--color-neutral-600)',
+} as const;
 
 function RatioOverTimeChart({ shots }: { shots: Shot[] }) {
   const times = shots.map((s) => s.pull_time_s);
   const ratios = shots.map((s) => ratio(s));
-  const x = scaleLinear(Math.min(...times), Math.max(...times), 20, 320);
-  const y = scaleLinear(Math.min(...ratios), Math.max(...ratios), 170, 20);
+
+  // Pad the domain (and widen it when every shot landed on the same number)
+  // so points never stack on the axis or collapse to a single pixel.
+  const [xLo, xHi] = niceDomain(times, 4);
+  const [yLo, yHi] = niceDomain(ratios, 0.3);
+  const x = scaleLinear(xLo, xHi, 40, 328);
+  const y = scaleLinear(yLo, yHi, 158, 18);
+
+  const minTime = Math.round(Math.min(...times));
+  const maxTime = Math.round(Math.max(...times));
+  const minRatio = Math.min(...ratios);
+  const maxRatio = Math.max(...ratios);
 
   return (
-    <svg viewBox="0 0 340 190" width="100%">
-      <line x1="20" y1="170" x2="320" y2="170" stroke="var(--color-divider)" />
-      <line x1="20" y1="20" x2="20" y2="170" stroke="var(--color-divider)" />
+    <svg viewBox="0 0 340 190" width="100%" style={{ overflow: 'visible' }}>
+      <line x1="40" y1="158" x2="328" y2="158" stroke="var(--color-divider)" />
+      <line x1="40" y1="18" x2="40" y2="158" stroke="var(--color-divider)" />
+
       {shots.map((shot, i) => (
         <circle
           key={shot.id}
@@ -26,6 +52,22 @@ function RatioOverTimeChart({ shots }: { shots: Shot[] }) {
           stroke={i === 0 ? 'none' : 'var(--color-neutral-600)'}
         />
       ))}
+
+      <text className="num" x="4" y="16" style={TICK_STYLE}>
+        {maxRatio.toFixed(1)}
+      </text>
+      <text x="4" y="30" style={{ ...TICK_STYLE, fontSize: '8.5px', letterSpacing: '0.08em' }}>
+        RATIO
+      </text>
+      <text className="num" x="4" y="160" style={TICK_STYLE}>
+        {minRatio.toFixed(1)}
+      </text>
+      <text className="num" x="40" y="176" style={TICK_STYLE}>
+        {minTime}s
+      </text>
+      <text className="num" x="328" y="176" textAnchor="end" style={TICK_STYLE}>
+        {maxTime}s
+      </text>
     </svg>
   );
 }
@@ -58,9 +100,14 @@ function PullTimeConsistencyChart({ shots }: { shots: Shot[] }) {
 
 function RatingByShotChart({ shots }: { shots: Shot[] }) {
   const rated = [...shots].reverse().filter((s) => s.rating != null) as (Shot & { rating: number })[];
-  const x = scaleLinear(0, Math.max(rated.length - 1, 1), 20, 320);
+
+  // Lay bars out in equal slots across the plot, each bar a fraction of its
+  // slot and capped, so a handful of ratings do not blow up into giant bars
+  // that hang off both edges of the chart.
+  const slot = 300 / Math.max(rated.length, 1);
+  const barWidth = Math.min(slot * 0.6, 30);
+  const x = (i: number) => 20 + slot * (i + 0.5);
   const y = scaleLinear(0, 5, 90, 10);
-  const barWidth = rated.length > 1 ? (300 / rated.length) * 0.6 : 30;
 
   return (
     <svg viewBox="0 0 340 110" width="100%">
@@ -77,6 +124,40 @@ function RatingByShotChart({ shots }: { shots: Shot[] }) {
         />
       ))}
     </svg>
+  );
+}
+
+function BagTrends({ bag }: { bag: Bag }) {
+  const shots = bag.shots;
+  const recentTimes = shots.slice(0, 14).map((s) => s.pull_time_s);
+  const medianTime = Math.round(medianOf(recentTimes));
+
+  return (
+    <div className="flex flex-col" style={{ gap: 'var(--space-6)', padding: 'var(--space-4)' }}>
+      <div>
+        <div className="num" style={KICKER_STYLE}>
+          Ratio against time
+        </div>
+        <p style={CAPTION_STYLE}>Is a longer pull pulling wetter or drier?</p>
+        <RatioOverTimeChart shots={shots} />
+      </div>
+      <div>
+        <div className="num" style={KICKER_STYLE}>
+          Pull time consistency
+        </div>
+        <p style={CAPTION_STYLE}>
+          Last {recentTimes.length} {recentTimes.length === 1 ? 'shot' : 'shots'} against your median of {medianTime}s.
+        </p>
+        <PullTimeConsistencyChart shots={shots} />
+      </div>
+      <div>
+        <div className="num" style={KICKER_STYLE}>
+          Rating by shot on this bag
+        </div>
+        <p style={CAPTION_STYLE}>Is this bag trending better or worse?</p>
+        <RatingByShotChart shots={shots} />
+      </div>
+    </div>
   );
 }
 
@@ -122,38 +203,7 @@ export function TrendsPage() {
       {!selectedBag || selectedBag.shots.length === 0 ? (
         <p style={{ padding: 'var(--space-4)' }}>No shots logged yet.</p>
       ) : (
-        <div className="flex flex-col" style={{ gap: 'var(--space-6)', padding: 'var(--space-4)' }}>
-          <div>
-            <div
-              className="num"
-              style={{ fontSize: '11px', letterSpacing: '0.08em', textTransform: 'uppercase', opacity: 0.55 }}
-            >
-              Ratio against time
-            </div>
-            <p style={{ fontSize: '12.5px', opacity: 0.7 }}>Is a longer pull pulling wetter or drier?</p>
-            <RatioOverTimeChart shots={selectedBag.shots} />
-          </div>
-          <div>
-            <div
-              className="num"
-              style={{ fontSize: '11px', letterSpacing: '0.08em', textTransform: 'uppercase', opacity: 0.55 }}
-            >
-              Pull time consistency
-            </div>
-            <p style={{ fontSize: '12.5px', opacity: 0.7 }}>How close to the median are recent shots landing?</p>
-            <PullTimeConsistencyChart shots={selectedBag.shots} />
-          </div>
-          <div>
-            <div
-              className="num"
-              style={{ fontSize: '11px', letterSpacing: '0.08em', textTransform: 'uppercase', opacity: 0.55 }}
-            >
-              Rating by shot on this bag
-            </div>
-            <p style={{ fontSize: '12.5px', opacity: 0.7 }}>Is this bag trending better or worse?</p>
-            <RatingByShotChart shots={selectedBag.shots} />
-          </div>
-        </div>
+        <BagTrends bag={selectedBag} />
       )}
     </div>
   );
