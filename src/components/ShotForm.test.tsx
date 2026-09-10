@@ -195,4 +195,34 @@ describe('ShotForm', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Target 1:2' }));
     expect(onTargetChange).toHaveBeenCalledWith(2);
   });
+
+  it('renders the pull-time target control and forwards a toggle', () => {
+    const onPullTimeTargetChange = vi.fn();
+    render(
+      <ShotForm
+        referenceValues={reference}
+        initialValues={{ ...reference, pull_time_s: '30' }}
+        submitLabel="Save shot"
+        onSubmit={vi.fn()}
+        pullTimeTarget={null}
+        onPullTimeTargetChange={onPullTimeTargetChange}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'No pull time target' }));
+    expect(onPullTimeTargetChange).toHaveBeenCalledWith([28, 32]);
+  });
+
+  it('shows the live pull-time position when a range is set', () => {
+    render(
+      <ShotForm
+        referenceValues={reference}
+        initialValues={{ ...reference, pull_time_s: '30' }}
+        submitLabel="Save shot"
+        onSubmit={vi.fn()}
+        pullTimeTarget={[26, 31]}
+        onPullTimeTargetChange={vi.fn()}
+      />
+    );
+    expect(screen.getByText(/30s in range/)).toBeInTheDocument();
+  });
 });

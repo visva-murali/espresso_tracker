@@ -2,6 +2,7 @@ import { useState, type FormEvent, type ReactNode } from 'react';
 import { formatSigned } from '../lib/format';
 import { StickyActionBar } from './StickyActionBar';
 import { RatioTargetControl } from './RatioTargetControl';
+import { PullTimeTargetControl } from './PullTimeTargetControl';
 
 export type ShotFormValues = {
   grind_setting: string;
@@ -37,6 +38,12 @@ type Props = {
    */
   target?: number | null;
   onTargetChange?: (next: number | null) => void;
+  /**
+   * The bag's target pull-time window [low, high], owned by the page. When
+   * set, the control under the Pull time row shows the live position.
+   */
+  pullTimeTarget?: [number, number] | null;
+  onPullTimeTargetChange?: (next: [number, number] | null) => void;
   /**
    * Extra fields rendered inside the form, between the rating/note section
    * and the sticky action bar - used by NewShotPage for its optional
@@ -155,6 +162,8 @@ export function ShotForm({
   onSubmit,
   target = null,
   onTargetChange,
+  pullTimeTarget = null,
+  onPullTimeTargetChange,
   children,
 }: Props) {
   const [values, setValues] = useState(initialValues);
@@ -221,13 +230,23 @@ export function ShotForm({
       </div>
 
       {numericFields.map((field) => (
-        <NudgeRow
-          key={field}
-          field={field}
-          value={values[field]}
-          reference={referenceValues[field]}
-          onChange={(next) => set(field, next)}
-        />
+        <div key={field}>
+          <NudgeRow
+            field={field}
+            value={values[field]}
+            reference={referenceValues[field]}
+            onChange={(next) => set(field, next)}
+          />
+          {field === 'pull_time_s' && (
+            <div style={{ padding: '0 var(--space-4) var(--space-2)' }}>
+              <PullTimeTargetControl
+                value={pullTimeTarget}
+                onChange={(next) => onPullTimeTargetChange?.(next)}
+                currentPullTime={Number.parseFloat(values.pull_time_s)}
+              />
+            </div>
+          )}
+        </div>
       ))}
 
       <div
