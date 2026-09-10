@@ -86,3 +86,62 @@ describe('videos RLS isolation', () => {
     expect(seenByB).toEqual([]);
   });
 });
+
+describe('bag_targets RLS isolation', () => {
+  it("user cannot select, update, or delete another user's bag target", async () => {
+    const a = await createTestUserClient(`rls-bt-a-${Date.now()}@test.local`);
+    const b = await createTestUserClient(`rls-bt-b-${Date.now()}@test.local`);
+
+    const { data: target, error: insertError } = await a.client
+      .from('bag_targets')
+      .insert({ user_id: a.userId, bean_name: 'Kenya', roast_date: '2026-08-23', target_ratio: 2 })
+      .select()
+      .single();
+    expect(insertError).toBeNull();
+
+    const { data: seenByB } = await b.client
+      .from('bag_targets')
+      .select()
+      .eq('id', target!.id);
+    expect(seenByB).toEqual([]);
+
+    const { data: updated } = await b.client
+      .from('bag_targets')
+      .update({ target_ratio: 9 })
+      .eq('id', target!.id)
+      .select();
+    expect(updated).toEqual([]);
+
+    const { data: deleted } = await b.client
+      .from('bag_targets')
+      .delete()
+      .eq('id', target!.id)
+      .select();
+    expect(deleted).toEqual([]);
+
+    const { data: stillThere } = await a.client
+      .from('bag_targets')
+      .select()
+      .eq('id', target!.id)
+      .single();
+    expect(Number(stillThere?.target_ratio)).toBe(2);
+  });
+
+  it('rejects a second target row for the same bag key, including a null-keyed bag', async () => {
+    const a = await createTestUserClient(`rls-bt-c-${Date.now()}@test.local`);
+
+    const first = await a.client
+      .from('bag_targets')
+      .insert({ user_id: a.userId, bean_name: null, roast_date: null, target_ratio: 2 })
+      .select()
+      .single();
+    expect(first.error).toBeNull();
+
+    const second = await a.client
+      .from('bag_targets')
+      .insert({ user_id: a.userId, bean_name: null, roast_date: null, target_ratio: 3 })
+      .select()
+      .single();
+    expect(second.error).not.toBeNull();
+  });
+});
