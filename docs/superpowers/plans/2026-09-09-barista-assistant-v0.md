@@ -61,15 +61,14 @@ CLAUDE.md                                     modified: status + data model note
 docs/mvp_spec.md                              modified: mark Phase 2B done
 ```
 
-## Preconditions for integration tests (Tasks 1 and 9)
+## Preconditions
 
-The two integration-test tasks need the local Supabase stack running and two env values, exactly as the existing `tests/integration/rls.test.ts` does:
+Env files are already set up by the human and are not the plan's concern:
 
-- `npx supabase start` (Docker must be running).
-- `.env` already holds `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` for local dev.
-- `.env.test.local` must hold `SUPABASE_LOCAL_SERVICE_ROLE_KEY=<the service_role key>`. Get it from `npx supabase status` (the "service_role key" line). This file is gitignored.
+- `.env` holds `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, and `SUPABASE_LOCAL_SERVICE_ROLE_KEY`.
+- `supabase/functions/.env` holds `GROQ_API_KEY` and `GROQ_MODEL`.
 
-If `npx supabase start` reports pending migrations after Task 1, run `npx supabase db reset` to replay all migrations against a clean local database.
+The integration-test tasks (1 and 9) additionally need the local Supabase stack running: `npx supabase start` (Docker must be running). If `npx supabase start` reports pending migrations after Task 1, run `npx supabase db reset` to replay all migrations against a clean local database.
 
 ---
 
@@ -1063,15 +1062,7 @@ Deno.serve(async (req: Request) => {
 });
 ```
 
-- [ ] **Step 2: Create the local `supabase/functions/.env` from the example**
-
-```bash
-cp supabase/functions/.env.example supabase/functions/.env
-```
-
-Leave the placeholder values for now (a real key is not needed until Task 9). The file is gitignored.
-
-- [ ] **Step 3: Add the function block to `supabase/config.toml`**
+- [ ] **Step 2: Add the function block to `supabase/config.toml`**
 
 Append to the end of `supabase/config.toml`:
 
@@ -1082,16 +1073,16 @@ verify_jwt = true
 
 `verify_jwt = true` makes the platform reject a missing or invalid JWT before the handler runs; the handler still forwards the token so RLS applies to its queries.
 
-- [ ] **Step 4: Smoke-test that the function bundles and boots**
+- [ ] **Step 3: Smoke-test that the function bundles and boots**
 
-Ensure `supabase/functions/.env` exists locally with placeholder values (copy from `.env.example`; a real key is not needed to boot).
+`supabase/functions/.env` already exists (see Preconditions).
 
 Run: `npx supabase functions serve analyze-shot --env-file supabase/functions/.env`
 Expected: it prints that it is serving `analyze-shot` with no bundling, import, or type error. Stop it with Ctrl-C.
 
 If Docker or the stack is unavailable in this environment, skip the boot and instead confirm by inspection that every import path resolves and no `src/` import was introduced; note in the commit that the boot check is deferred to Task 9.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 4: Commit**
 
 ```bash
 git add supabase/functions/analyze-shot/index.ts supabase/config.toml
@@ -1641,14 +1632,14 @@ git commit -m "feat: show the barista assistant on the shot detail page"
 - Modify: `docs/mvp_spec.md`
 
 **Interfaces:**
-- Consumes: everything from Tasks 1-8, plus a real `GROQ_API_KEY` provided by the human.
+- Consumes: everything from Tasks 1-8, plus a working `GROQ_API_KEY` in `supabase/functions/.env` (already placed there by the human).
 - Produces: a verified deployed feature and updated status docs.
 
-This task needs the human to have completed the prerequisites in `docs/barista-assistant-design.md` section 7 (Groq account, key, model id). If the key is not yet available, stop after Step 1 and report that Steps 2-4 are blocked on it.
+If the Groq key in `supabase/functions/.env` turns out to be missing or invalid when Step 1 runs, stop and report that Steps 2-4 are blocked on a working key.
 
 - [ ] **Step 1: Local end-to-end run**
 
-With `supabase/functions/.env` holding the real `GROQ_API_KEY` and `GROQ_MODEL`:
+With the local Supabase stack and the function running:
 
 ```bash
 npx supabase start
@@ -1728,7 +1719,7 @@ git commit -m "docs: record barista assistant v0 as implemented"
 - Client library (section 4) -> Task 6.
 - UI section and states (section 5) -> Tasks 7, 8.
 - Testing (section 6): unit -> Tasks 2-4, 6, 7; integration RLS -> Task 1; manual checklist -> Task 9.
-- Prerequisites (section 7) -> called out in the Preconditions block and Task 9's preamble.
+- Prerequisites (section 7) -> env files already in place (Preconditions block); Groq key verified in Task 9 Step 1.
 - Testability structure (section 2 subsection) -> the `shot-math` / `prompt` / `orchestrator` / `index` split is Tasks 2-5.
 
 **Placeholder scan:** No "TBD"/"handle errors appropriately"/"similar to Task N". Every code step has literal content. The one deliberately deferred item is Task 5's boot smoke-test when Docker is unavailable, with an explicit inspection fallback and re-check in Task 9.
@@ -1744,6 +1735,6 @@ Plan complete and saved to `docs/superpowers/plans/2026-09-09-barista-assistant-
 1. **Subagent-Driven (recommended)** - a fresh subagent per task, two-stage review between tasks, fast iteration.
 2. **Inline Execution** - execute tasks in this session via `superpowers:executing-plans`, batched with checkpoints for review.
 
-Note: Task 9 (and the deploy half of the feature) is blocked until you have created the Groq API key. Tasks 1-8 can be built and verified now; Task 1 and the integration test need the local Supabase stack (`npx supabase start`, Docker running).
+Note: env files are already in place. Task 9 verifies the Groq key works and then deploys. Tasks 1-8 can be built and verified now; Task 1 and its integration test need the local Supabase stack (`npx supabase start`, Docker running).
 
 Which approach?
