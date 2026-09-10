@@ -39,7 +39,7 @@ export function EditShotPage() {
   const values = toFormValues(shot);
 
   return (
-    <div className="max-w-md mx-auto">
+    <div className="max-w-md mx-auto flex flex-col min-h-[100dvh]">
       <div className="flex items-center border-b border-[var(--color-divider)]" style={{ padding: 'var(--space-3) var(--space-4)' }}>
         <Link
           to={`/shots/${id}`}

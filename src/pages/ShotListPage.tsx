@@ -6,6 +6,8 @@ import { groupShotsByBag, bagState, ratio, daysSinceRoast, deltas, bagKey, type 
 import { formatMass, formatSigned, formatRoastAge } from '../lib/format';
 import { useAuth } from '../context/AuthContext';
 import { SearchIcon, MenuIcon, VideoIcon } from '../components/icons';
+import { Logo } from '../components/Logo';
+import { StickyActionBar } from '../components/StickyActionBar';
 import { RatioFigure } from '../components/shot-display/RatioFigure';
 import { PullTimeFigure } from '../components/shot-display/PullTimeFigure';
 import { RatingDots } from '../components/shot-display/RatingDots';
@@ -123,14 +125,17 @@ export function ShotListPage() {
     filter === 'active' ? bags.filter((bag) => bagState(bag.shots) !== 'past-peak') : bags;
 
   return (
-    <div className="max-w-md mx-auto flex flex-col" style={{ paddingBottom: '88px' }}>
+    <div className="max-w-md mx-auto flex flex-col min-h-[100dvh]">
       <header
         className="flex justify-between items-center border-b border-[var(--color-divider)]"
         style={{ padding: '14px var(--space-4) var(--space-3)' }}
       >
-        <h1 style={{ fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: '19px' }}>
-          Shots
-        </h1>
+        <div className="flex items-center" style={{ gap: 'var(--space-2)' }}>
+          <Logo size={20} style={{ color: 'var(--color-accent)' }} />
+          <h1 style={{ fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: '19px' }}>
+            Shots
+          </h1>
+        </div>
         <div className="flex items-center relative" style={{ gap: 'var(--space-2)' }}>
           <button
             type="button"
@@ -205,10 +210,7 @@ export function ShotListPage() {
         <BagGroup key={bagKey(bag)} bag={bag} />
       ))}
 
-      <div
-        className="fixed bottom-0 left-0 right-0 border-t border-[var(--color-divider)] bg-[var(--color-bg)]"
-        style={{ padding: 'var(--space-3) var(--space-4) var(--space-6)' }}
-      >
+      <StickyActionBar>
         <Link
           to="/shots/new"
           className="block w-full text-center border border-[var(--color-accent)] rounded-[var(--radius-md)] hover:bg-[var(--color-accent-100)] active:bg-[var(--color-accent-200)]"
@@ -216,7 +218,7 @@ export function ShotListPage() {
         >
           Log a shot
         </Link>
-      </div>
+      </StickyActionBar>
     </div>
   );
 }

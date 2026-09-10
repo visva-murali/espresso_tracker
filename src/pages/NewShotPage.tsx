@@ -139,7 +139,7 @@ export function NewShotPage() {
     : null;
 
   return (
-    <div className="max-w-md mx-auto">
+    <div className="max-w-md mx-auto flex flex-col min-h-[100dvh]">
       <header
         className="flex justify-between items-center border-b border-[var(--color-divider)]"
         style={{ padding: 'var(--space-3) var(--space-4)' }}
@@ -218,17 +218,15 @@ export function NewShotPage() {
           initialValues={formValues}
           submitLabel="Save shot"
           onSubmit={handleSubmit}
-        />
-      )}
-
-      {formValues && !showNewBagFields && (
-        <div className="flex flex-col gap-1" style={{ padding: '0 var(--space-4) var(--space-4)' }}>
-          <label htmlFor="video-input" className="text-sm" style={{ color: 'var(--color-accent)' }}>
-            Attach pour video (optional)
-          </label>
-          <input id="video-input" type="file" accept="video/*" onChange={handleVideoChange} />
-          {videoError && <p style={{ color: 'var(--color-accent-800)' }}>{videoError}</p>}
-        </div>
+        >
+          <div className="flex flex-col gap-1" style={{ padding: '0 var(--space-4) var(--space-4)' }}>
+            <label htmlFor="video-input" className="text-sm" style={{ color: 'var(--color-accent)' }}>
+              Attach pour video (optional)
+            </label>
+            <input id="video-input" type="file" accept="video/*" onChange={handleVideoChange} />
+            {videoError && <p style={{ color: 'var(--color-accent-800)' }}>{videoError}</p>}
+          </div>
+        </ShotForm>
       )}
     </div>
   );

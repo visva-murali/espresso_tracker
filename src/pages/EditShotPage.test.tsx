@@ -63,6 +63,15 @@ describe('EditShotPage', () => {
     expect(navigateMock).toHaveBeenCalledWith('/shots/shot-1');
   });
 
+  it('puts the "Save changes" action in the sticky bottom bar', async () => {
+    vi.mocked(getShot).mockResolvedValue(shot);
+    renderAtShot('shot-1');
+
+    await waitFor(() => expect(screen.getByLabelText('Dose')).toHaveValue('18'));
+    const bar = screen.getByTestId('action-bar');
+    expect(bar).toContainElement(screen.getByRole('button', { name: 'Save changes' }));
+  });
+
   it('shows an error message when loading the shot fails', async () => {
     vi.mocked(getShot).mockRejectedValue(new Error('Failed to load shot'));
 

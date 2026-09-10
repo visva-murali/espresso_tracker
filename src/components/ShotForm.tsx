@@ -1,5 +1,6 @@
-import { useState, type FormEvent } from 'react';
+import { useState, type FormEvent, type ReactNode } from 'react';
 import { formatSigned } from '../lib/format';
+import { StickyActionBar } from './StickyActionBar';
 
 export type ShotFormValues = {
   grind_setting: string;
@@ -28,6 +29,12 @@ type Props = {
   initialValues: ShotFormValues;
   submitLabel: string;
   onSubmit: (values: ShotFormValues) => Promise<void>;
+  /**
+   * Extra fields rendered inside the form, between the rating/note section
+   * and the sticky action bar - used by NewShotPage for its optional
+   * pour-video picker so the picker stays above the pinned submit button.
+   */
+  children?: ReactNode;
 };
 
 type NumericField = 'grind_setting' | 'dose_g' | 'yield_g' | 'pull_time_s';
@@ -133,7 +140,7 @@ function NudgeRow({
   );
 }
 
-export function ShotForm({ referenceValues, initialValues, submitLabel, onSubmit }: Props) {
+export function ShotForm({ referenceValues, initialValues, submitLabel, onSubmit, children }: Props) {
   const [values, setValues] = useState(initialValues);
   const [noteOpen, setNoteOpen] = useState(Boolean(initialValues.tasting_note));
   const [error, setError] = useState<string | null>(null);
@@ -185,7 +192,7 @@ export function ShotForm({ referenceValues, initialValues, submitLabel, onSubmit
   const ratioValue = Number.isFinite(dose) && Number.isFinite(yieldG) && dose > 0 ? yieldG / dose : null;
 
   return (
-    <form onSubmit={handleSubmit}>
+    <form onSubmit={handleSubmit} className="flex flex-col flex-1">
       <div className="flex justify-end" style={{ padding: 'var(--space-2) var(--space-4)' }}>
         <button
           type="button"
@@ -290,9 +297,12 @@ export function ShotForm({ referenceValues, initialValues, submitLabel, onSubmit
         )}
       </div>
 
-      {error && <p style={{ color: 'var(--color-accent-800)', padding: '0 var(--space-4)' }}>{error}</p>}
+      {children}
 
-      <div style={{ padding: 'var(--space-3) var(--space-4) var(--space-6)' }}>
+      <StickyActionBar>
+        {error && (
+          <p style={{ color: 'var(--color-accent-800)', paddingBottom: 'var(--space-2)' }}>{error}</p>
+        )}
         <button
           type="submit"
           disabled={saving}
@@ -301,7 +311,7 @@ export function ShotForm({ referenceValues, initialValues, submitLabel, onSubmit
         >
           {saving ? 'Saving...' : submitLabel}
         </button>
-      </div>
+      </StickyActionBar>
     </form>
   );
 }

@@ -149,6 +149,19 @@ describe('ShotDetailPage', () => {
     await waitFor(() => expect(screen.getByText(/shot not found/i)).toBeInTheDocument());
   });
 
+  it('puts the delete and "pull another" actions in the sticky bottom bar', async () => {
+    vi.mocked(getShot).mockResolvedValue(shot);
+    vi.mocked(listShots).mockResolvedValue([shot]);
+    vi.mocked(getVideoForShot).mockResolvedValue(null);
+
+    renderAtShot('shot-1');
+
+    await waitFor(() => expect(screen.getByText('Kenya Nyeri AA')).toBeInTheDocument());
+    const bar = screen.getByTestId('action-bar');
+    expect(bar).toContainElement(screen.getByRole('button', { name: /delete shot/i }));
+    expect(bar).toContainElement(screen.getByRole('link', { name: /pull another like this/i }));
+  });
+
   it('deletes the shot after confirmation and navigates to the list', async () => {
     vi.mocked(getShot).mockResolvedValue(shot);
     vi.mocked(listShots).mockResolvedValue([shot]);

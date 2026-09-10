@@ -125,6 +125,21 @@ describe('NewShotPage', () => {
     );
   });
 
+  it('puts "Save shot" in the sticky bottom bar, below the pour-video field', async () => {
+    vi.mocked(listShots).mockResolvedValue([referenceShot]);
+
+    render(
+      <MemoryRouter>
+        <NewShotPage />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => expect(screen.getByLabelText('Dose')).toHaveValue('18'));
+    const bar = screen.getByTestId('action-bar');
+    expect(bar).toContainElement(screen.getByRole('button', { name: 'Save shot' }));
+    expect(bar).not.toContainElement(screen.getByLabelText(/pour video/i));
+  });
+
   it('lets a user with existing bags start a new bag instead of duplicating one', async () => {
     vi.mocked(listShots).mockResolvedValue([referenceShot]);
 

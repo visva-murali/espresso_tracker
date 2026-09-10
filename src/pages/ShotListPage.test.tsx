@@ -62,6 +62,21 @@ describe('ShotListPage', () => {
     expect(screen.getByText('2.00')).toBeInTheDocument();
   });
 
+  it('puts the "Log a shot" action in the sticky bottom bar', async () => {
+    mockAuth();
+    vi.mocked(listShots).mockResolvedValue([baseShot]);
+
+    render(
+      <MemoryRouter>
+        <ShotListPage />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => expect(screen.getByText('Kenya Nyeri AA')).toBeInTheDocument());
+    const bar = screen.getByTestId('action-bar');
+    expect(bar).toContainElement(screen.getByRole('link', { name: 'Log a shot' }));
+  });
+
   it('shows an empty state when there are no shots', async () => {
     mockAuth();
     vi.mocked(listShots).mockResolvedValue([]);

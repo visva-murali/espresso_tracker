@@ -13,6 +13,7 @@ import { groupShotsByBag, deltas, ratio, daysSinceRoast, sameBag } from '../lib/
 import { formatMass, formatSigned, formatRoastAge } from '../lib/format';
 import { RatioFigure } from '../components/shot-display/RatioFigure';
 import { PullTimeFigure } from '../components/shot-display/PullTimeFigure';
+import { StickyActionBar } from '../components/StickyActionBar';
 
 type VideoState = 'none' | 'uploading' | 'ready' | 'unplayable';
 
@@ -100,7 +101,7 @@ export function ShotDetailPage() {
   const timestamp = new Date(shot.created_at).toLocaleString();
 
   return (
-    <div className="max-w-md mx-auto">
+    <div className="max-w-md mx-auto flex flex-col min-h-[100dvh]">
       <header
         className="flex justify-between items-center border-b border-[var(--color-divider)]"
         style={{ padding: 'var(--space-3) var(--space-4)' }}
@@ -309,26 +310,25 @@ export function ShotDetailPage() {
         </div>
       )}
 
-      <div
-        className="flex justify-between items-center border-t border-[var(--color-divider)]"
-        style={{ padding: 'var(--space-3) var(--space-4) var(--space-6)' }}
-      >
-        <button
-          type="button"
-          onClick={handleDelete}
-          className="text-sm rounded-[var(--radius-sm)] px-1 py-0.5 hover:bg-[var(--color-accent-100)] active:bg-[var(--color-accent-200)]"
-          style={{ color: 'var(--color-neutral-700)' }}
-        >
-          Delete shot
-        </button>
-        <Link
-          to={`/shots/new?from=${id}`}
-          className="flex items-center justify-center border border-[var(--color-accent)] rounded-[var(--radius-md)] hover:bg-[var(--color-accent-100)] active:bg-[var(--color-accent-200)]"
-          style={{ height: '48px', padding: '0 var(--space-4)', color: 'var(--color-accent)' }}
-        >
-          Pull another like this
-        </Link>
-      </div>
+      <StickyActionBar>
+        <div className="flex justify-between items-center">
+          <button
+            type="button"
+            onClick={handleDelete}
+            className="text-sm rounded-[var(--radius-sm)] px-1 py-0.5 hover:bg-[var(--color-accent-100)] active:bg-[var(--color-accent-200)]"
+            style={{ color: 'var(--color-neutral-700)' }}
+          >
+            Delete shot
+          </button>
+          <Link
+            to={`/shots/new?from=${id}`}
+            className="flex items-center justify-center border border-[var(--color-accent)] rounded-[var(--radius-md)] hover:bg-[var(--color-accent-100)] active:bg-[var(--color-accent-200)]"
+            style={{ height: '48px', padding: '0 var(--space-4)', color: 'var(--color-accent)' }}
+          >
+            Pull another like this
+          </Link>
+        </div>
+      </StickyActionBar>
     </div>
   );
 }
