@@ -26,6 +26,16 @@ SSR), and RLS enforces per-user isolation inside the database instead of
 relying on every app query getting a `WHERE user_id` clause right. Full
 trade-off discussion in `docs/mvp-design.md`.
 
+## Deploying
+
+The frontend redeploys automatically on push to `main` (Vercel). The
+database and Edge Functions do not: after a merge that adds a migration
+or changes `supabase/functions/`, run `npm run deploy:supabase` from the
+main checkout (`supabase db push` then `supabase functions deploy
+analyze-shot`). It prompts before applying, so read what it lists.
+Function env vars (`GROQ_API_KEY` etc.) are set once with
+`supabase secrets set` and are not part of this script.
+
 ## Data model
 
 - `shots`: one row per logged shot. `user_id`, `grind_setting` (text),
