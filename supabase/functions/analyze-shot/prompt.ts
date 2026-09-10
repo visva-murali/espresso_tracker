@@ -5,41 +5,44 @@ import type { ShotRow, GroqMessages } from './types.ts';
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
 
 const SYSTEM = [
-  'You are an espresso dial-in assistant. You are given one espresso shot, the recent shots',
-  'before it on the same bag, and the target brew ratio the user is aiming for on this bag',
-  '(or "none set"). Reason only from the numbers provided: dose, yield, ratio (yield/dose), pull',
-  'time, grind setting, ratings, and tasting notes.',
+  'You are an espresso dial-in assistant. You are given one shot, the recent shots before it on',
+  'the same bag, the target brew ratio for the bag (or "none set"), and, when a previous shot',
+  'exists, the exact changes from it. Reason only from these numbers: dose, yield, ratio',
+  '(yield/dose), pull time, grind, ratings, tasting notes.',
   '',
-  'When a target ratio is set, judge the shot against it: that is the user\'s stated intent, so',
-  'do not infer a different goal from the shot history. Use the prior shots only for trend - is',
-  'the ratio converging on the target, is the pull time drifting, are ratings improving. When no',
-  'target is set, reason from the numbers and the trend alone.',
+  'The target ratio is the user\'s stated intent - judge the shot against it, do not infer a',
+  'different goal from history. Use prior shots only for trend. With no target, reason from the',
+  'numbers and trend alone.',
   '',
-  'How the variables move outcomes:',
-  '- Grind: finer slows the flow, lengthens the pull, and raises extraction (bitter if too far);',
-  '  coarser does the reverse. Reach for grind to fix pull time or a sour/bitter imbalance.',
-  '- Yield: the direct lever for ratio. Stop the shot earlier for a lower ratio, later for a',
-  '  higher one. Use this for a small ratio correction when the pull time and taste are fine.',
-  '- Dose: more dose lowers the ratio at a fixed yield and adds body; less does the reverse.',
+  'Use the "Change from the previous shot" line exactly as given; never describe a change in the',
+  'direction opposite to what it states. Do not attribute a change to a variable that did not',
+  'move: at the same grind and dose, a few grams of yield or a few seconds of time is ordinary',
+  'pull-to-pull variance (distribution, tamp, channeling), not a grind or dose effect.',
   '',
-  'Do not attribute a shot-to-shot change to a variable that did not change. If the grind',
-  'setting is the same as the previous shot, differences in time or yield are ordinary',
-  'pull-to-pull variance (distribution, tamp, channeling), not a grind effect.',
+  'Levers: grind finer slows the flow, lengthens the pull, and raises extraction (bitter if too',
+  'far); coarser reverses it - use grind for pull time or a sour/bitter imbalance. Yield is the',
+  'direct lever for ratio: stop earlier for less, later for more - use it for a small ratio',
+  'correction when time and taste are fine. More dose lowers the ratio at a fixed yield and adds',
+  'body.',
+  '',
+  'Call a shot over- or under-extracted only from a tasting note (bitter or harsh = over, sour or',
+  'thin = under) or a ratio more than about 0.1 off target. A ratio within about 0.1 of target is',
+  'on target, not over- or under-extracted.',
   '',
   'Give the diagnosis, then exactly one of:',
-  '- one adjustment for the next shot: change one variable only, and name the value or target it',
-  '  should move toward; or',
-  '- if the ratio is within about 0.1 of the target (or, with no target, stable across recent',
-  '  shots), the pull time is in a sensible range (roughly 25-32s for a straight shot) and steady,',
-  '  and no rating or note flags a problem: say the shot is dialed and the adjustment is to',
-  '  repeat it unchanged.',
+  '- one adjustment for the next shot: change one variable only, and name the value it should',
+  '  move toward; or',
+  '- if the ratio is within about 0.1 of the target (or, with no target, close to recent shots)',
+  '  and no rating or tasting note flags a problem: say the shot is dialed and the adjustment is',
+  '  to repeat it unchanged. A pull time that moved a few seconds from the last shot at the same',
+  '  grind and dose does not disqualify this - note it as consistency to watch, do not change a',
+  '  variable for it.',
   '',
   'If there are two or fewer prior shots on the bag, open the diagnosis by saying the signal is',
-  'limited. Be concrete and terse. Do not hedge with multiple options. Do not discuss equipment,',
-  'water, or beans you were not told about.',
+  'limited. Be concrete and terse, one or two sentences each, no line breaks. Do not hedge with',
+  'multiple options. Do not discuss equipment, water, or beans you were not told about.',
   '',
-  'Respond only as JSON: {"diagnosis": "...", "adjustment": "..."}. Each value is one or two',
-  'sentences with no line breaks.',
+  'Respond only as JSON: {"diagnosis": "...", "adjustment": "..."}.',
 ].join(' ');
 
 function fmtRatio(shot: ShotRow): string {
@@ -91,6 +94,47 @@ function priorShotLine(prior: ShotRow, current: ShotRow): string {
   );
 }
 
+const NUMERIC_RE = /^-?\d+(\.\d+)?$/;
+
+function round1(n: number): number {
+  return Math.round(n * 10) / 10;
+}
+
+function signed1(n: number): string {
+  const r = round1(n);
+  return `${r >= 0 ? '+' : '-'}${Math.abs(r).toFixed(1)}`;
+}
+
+// The exact changes from the immediately-previous shot on the bag, so the
+// model does not have to compute (and sometimes miscompute) them. Mirrors
+// deltas() in src/lib/shotView.ts for grind / dose / yield / time, plus a
+// rating delta. Only rendered same-bag with a previous shot present.
+function changeFromPreviousLine(current: ShotRow, previous: ShotRow): string {
+  const grindPart =
+    NUMERIC_RE.test(current.grind_setting) && NUMERIC_RE.test(previous.grind_setting)
+      ? (() => {
+          const d = round1(parseFloat(current.grind_setting) - parseFloat(previous.grind_setting));
+          return d === 0 ? 'grind unchanged' : `grind ${signed1(d)}`;
+        })()
+      : current.grind_setting === previous.grind_setting
+        ? 'grind unchanged'
+        : `grind "${previous.grind_setting}" -> "${current.grind_setting}"`;
+
+  const parts = [
+    grindPart,
+    `dose ${signed1(current.dose_g - previous.dose_g)}g`,
+    `yield ${signed1(current.yield_g - previous.yield_g)}g`,
+    `time ${current.pull_time_s - previous.pull_time_s >= 0 ? '+' : '-'}${Math.abs(
+      Math.round(current.pull_time_s - previous.pull_time_s)
+    )}s`,
+  ];
+  if (current.rating != null && previous.rating != null) {
+    const d = current.rating - previous.rating;
+    parts.push(d === 0 ? 'rating unchanged' : `rating ${d > 0 ? '+' : '-'}${Math.abs(d)}`);
+  }
+  return `Change from the previous shot: ${parts.join(', ')}`;
+}
+
 export function buildPrompt(
   shot: ShotRow,
   priorShots: ShotRow[],
@@ -116,6 +160,18 @@ export function buildPrompt(
         : 'No prior shots on this bag.'
       : [historyHeader, ...priorShots.map((p) => priorShotLine(p, shot))].join('\n');
 
-  const user = [beanLine, '', currentShotBlock(shot, opts.targetRatio), '', historyBlock].join('\n');
+  const changeLine =
+    !opts.mixedBeans && priorShots.length > 0
+      ? ['', changeFromPreviousLine(shot, priorShots[0])]
+      : [];
+
+  const user = [
+    beanLine,
+    '',
+    currentShotBlock(shot, opts.targetRatio),
+    ...changeLine,
+    '',
+    historyBlock,
+  ].join('\n');
   return { system: SYSTEM, user };
 }

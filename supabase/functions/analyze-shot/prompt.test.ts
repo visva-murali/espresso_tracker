@@ -130,6 +130,77 @@ describe('buildPrompt', () => {
     // the "you're dialed, repeat it" escape hatch
     expect(system).toMatch(/repeat it/i);
     // do not blame a variable that did not move
-    expect(system).toMatch(/did not change|same as the previous shot/i);
+    expect(system).toMatch(/did not (change|move)|same as the previous shot/i);
+  });
+
+  it('system message tells the model to trust the delta line and not flip its direction', () => {
+    const { system } = buildPrompt(makeShot({}), [], { mixedBeans: false, targetRatio: 2 }, NOW);
+    expect(system).toMatch(/opposite/i);
+    expect(system).toMatch(/consistency to watch/i);
+    // over/under-extraction is a taste or large-miss judgment, not a small ratio gap
+    expect(system).toMatch(/over- or under-extracted/);
+  });
+
+  it('renders a signed change line against the immediately previous shot', () => {
+    const prior = [
+      makeShot({
+        id: 'p1',
+        created_at: '2026-09-03T07:42:00Z',
+        grind_setting: '15',
+        dose_g: 18,
+        yield_g: 38,
+        pull_time_s: 25,
+        rating: 3,
+      }),
+    ];
+    const current = makeShot({
+      grind_setting: '15',
+      dose_g: 18,
+      yield_g: 37,
+      pull_time_s: 30,
+      rating: 4,
+    });
+    const { user } = buildPrompt(current, prior, { mixedBeans: false, targetRatio: 2 }, NOW);
+    expect(user).toContain(
+      'Change from the previous shot: grind unchanged, dose +0.0g, yield -1.0g, time +5s, rating +1'
+    );
+  });
+
+  it('gives a signed numeric grind delta when both settings are numbers', () => {
+    const prior = [makeShot({ id: 'p1', created_at: '2026-09-03T07:42:00Z', grind_setting: '15' })];
+    const current = makeShot({ grind_setting: '14' });
+    const { user } = buildPrompt(current, prior, { mixedBeans: false, targetRatio: null }, NOW);
+    expect(user).toContain('grind -1.0');
+  });
+
+  it('shows the raw grind values when a setting is not numeric', () => {
+    const prior = [makeShot({ id: 'p1', created_at: '2026-09-03T07:42:00Z', grind_setting: "3 o'clock" })];
+    const current = makeShot({ grind_setting: "2 o'clock" });
+    const { user } = buildPrompt(current, prior, { mixedBeans: false, targetRatio: null }, NOW);
+    expect(user).toContain(`grind "3 o'clock" -> "2 o'clock"`);
+  });
+
+  it('omits the rating delta when either shot has no rating', () => {
+    const prior = [makeShot({ id: 'p1', created_at: '2026-09-03T07:42:00Z', rating: null })];
+    const current = makeShot({ rating: 4 });
+    const { user } = buildPrompt(current, prior, { mixedBeans: false, targetRatio: null }, NOW);
+    expect(user).toContain('Change from the previous shot:');
+    expect(user).not.toMatch(/rating [+-]/);
+  });
+
+  it('has no change line when there are no prior shots', () => {
+    const { user } = buildPrompt(makeShot({}), [], { mixedBeans: false, targetRatio: null }, NOW);
+    expect(user).not.toContain('Change from the previous shot');
+  });
+
+  it('has no change line in the mixedBeans case (previous shot may be a different bag)', () => {
+    const prior = [makeShot({ id: 'p1', created_at: '2026-09-03T07:42:00Z' })];
+    const { user } = buildPrompt(
+      makeShot({ bean_name: null, roast_date: null }),
+      prior,
+      { mixedBeans: true, targetRatio: null },
+      NOW
+    );
+    expect(user).not.toContain('Change from the previous shot');
   });
 });

@@ -86,12 +86,20 @@ are set once with `supabase secrets set` and are not part of this script.
 ## Barista assistant
 
 On-demand shot troubleshooting on the shot detail page. The
-`analyze-shot` Supabase Edge Function reads the shot plus up to 8 prior
-same-bag shots through the caller's JWT (RLS enforces ownership), calls
-Groq (free tier, key held server-side in the function's env, never in
-the client), and upserts a `shot_analyses` row. Design and rationale:
+`analyze-shot` Supabase Edge Function reads the shot, up to 8 prior
+same-bag shots, and the bag's `target_ratio` (all through the caller's
+JWT, RLS enforces ownership), calls Groq (free tier, key held
+server-side in the function's env, never in the client), and upserts a
+`shot_analyses` row. Design and rationale:
 `docs/barista-assistant-design.md`. No CV dependency; this is Phase 2
 piece B from `docs/mvp_spec.md`.
+
+The prompt (`supabase/functions/analyze-shot/prompt.ts`) judges the shot
+against the bag's target ratio when one is set rather than inferring
+intent from history, is handed the exact shot-to-shot deltas so it does
+not miscompute them, and can return "dialed, repeat it" instead of
+being forced to recommend a change. A per-bag target pull time (Spec 2,
+not built) would slot into the same prompt.
 
 ## Definition of done for v1
 

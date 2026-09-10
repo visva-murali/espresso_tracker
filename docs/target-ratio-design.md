@@ -16,9 +16,11 @@ the shot detail readout, and the Trends ratio chart. It also changes
 what `dialed` means when a target is set.
 
 It is not the Barista Assistant (`docs/barista-assistant-design.md`)
-and does not depend on it. When that feature is built, the target
-becomes another input to its prompt; that wiring is out of scope here
-and noted where relevant.
+and does not depend on it. This design left the assistant integration
+out of scope; it was done separately on 2026-09-10 - the `analyze-shot`
+function now reads `target_ratio` and the prompt judges the shot
+against it. See the "Prompt revisions" note in
+`docs/barista-assistant-design.md`.
 
 ## Decisions locked before this design
 
@@ -59,7 +61,8 @@ Settled in the 2026-09-09 brainstorming conversation:
 
 ## Non-goals for v1
 
-- Any Barista Assistant integration.
+- Any Barista Assistant integration. (Done separately 2026-09-10 - see
+  the note above.)
 - A target control on the Trends page, the shot list, or the shot
   detail page. Those three surfaces display the target; only the form
   sets it.
