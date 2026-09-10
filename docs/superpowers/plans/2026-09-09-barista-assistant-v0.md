@@ -29,7 +29,7 @@ supabase/
     00000000000004_shot_analyses.sql          new: table + RLS
   config.toml                                 modified: [functions.analyze-shot]
   functions/
-    .env.example                              new: GROQ_API_KEY, GROQ_MODEL
+    .env.example                              exists already (GROQ_API_KEY, GROQ_MODEL, GROQ_BASE_URL)
     analyze-shot/
       types.ts                                new: shared types + GroqError
       shot-math.ts                            new: ratio, daysSinceRoast (Deno copy)
@@ -910,12 +910,13 @@ git commit -m "feat: add analyze-shot orchestrator with full branch coverage"
 
 ---
 
-### Task 5: `index.ts` Deno wiring, function config, and env example
+### Task 5: `index.ts` Deno wiring and function config
 
 **Files:**
 - Create: `supabase/functions/analyze-shot/index.ts`
-- Create: `supabase/functions/.env.example`
 - Modify: `supabase/config.toml`
+
+Note: `supabase/functions/.env.example` (with `GROQ_API_KEY`, `GROQ_MODEL`, `GROQ_BASE_URL`) and the root `.env.example` already exist, added ahead of this plan's execution. Task 5 only needs to consume them, not create them.
 
 **Interfaces:**
 - Consumes: `runAnalysis` from `./orchestrator` (Task 4); `GroqError`, `GroqMessages`, `GroqResult`, `ShotRow` from `./types` (Task 3).
@@ -1062,15 +1063,13 @@ Deno.serve(async (req: Request) => {
 });
 ```
 
-- [ ] **Step 2: Write `supabase/functions/.env.example`**
+- [ ] **Step 2: Create the local `supabase/functions/.env` from the example**
 
+```bash
+cp supabase/functions/.env.example supabase/functions/.env
 ```
-# Copy this file to supabase/functions/.env and fill in real values.
-# supabase/functions/.env is gitignored (matched by the root .gitignore .env rule).
-# The key is created and held by a human, never committed.
-GROQ_API_KEY=your-groq-api-key
-GROQ_MODEL=llama-3.3-70b-versatile
-```
+
+Leave the placeholder values for now (a real key is not needed until Task 9). The file is gitignored.
 
 - [ ] **Step 3: Add the function block to `supabase/config.toml`**
 
@@ -1095,7 +1094,7 @@ If Docker or the stack is unavailable in this environment, skip the boot and ins
 - [ ] **Step 5: Commit**
 
 ```bash
-git add supabase/functions/analyze-shot/index.ts supabase/functions/.env.example supabase/config.toml
+git add supabase/functions/analyze-shot/index.ts supabase/config.toml
 git commit -m "feat: add analyze-shot edge function wiring and config"
 ```
 
