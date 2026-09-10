@@ -9,8 +9,11 @@ import {
   ratio,
   formatRatio,
   daysSinceRoast,
+  targetForBag,
+  ratioDelta,
 } from './shotView';
 import type { Shot } from './shots';
+import type { BagTarget } from './bagTargets';
 
 function makeShot(overrides: Partial<Shot>): Shot {
   return {
@@ -172,5 +175,49 @@ describe('ratio and formatRatio', () => {
 describe('daysSinceRoast', () => {
   it('computes whole days between roast_date and now', () => {
     expect(daysSinceRoast('2026-08-23', new Date('2026-09-04'))).toBe(12);
+  });
+});
+
+function makeTarget(overrides: Partial<BagTarget>): BagTarget {
+  return {
+    id: 'target-1',
+    user_id: 'user-1',
+    bean_name: 'Kenya Nyeri AA',
+    roast_date: '2026-08-23',
+    target_ratio: 2,
+    created_at: '2026-09-04T07:42:00Z',
+    updated_at: '2026-09-04T07:42:00Z',
+    ...overrides,
+  };
+}
+
+describe('targetForBag', () => {
+  it('returns the target_ratio for the matching bag key', () => {
+    const targets = [makeTarget({ bean_name: 'Kenya Nyeri AA', roast_date: '2026-08-23', target_ratio: 2.5 })];
+    expect(targetForBag(targets, { bean_name: 'Kenya Nyeri AA', roast_date: '2026-08-23' })).toBe(2.5);
+  });
+
+  it('matches the null-keyed unlabeled bag', () => {
+    const targets = [makeTarget({ bean_name: null, roast_date: null, target_ratio: 3 })];
+    expect(targetForBag(targets, { bean_name: null, roast_date: null })).toBe(3);
+  });
+
+  it('returns null when no target matches', () => {
+    const targets = [makeTarget({ bean_name: 'Kenya Nyeri AA', roast_date: '2026-08-23' })];
+    expect(targetForBag(targets, { bean_name: 'Colombia', roast_date: '2026-08-23' })).toBeNull();
+  });
+
+  it('returns null for an empty target list', () => {
+    expect(targetForBag([], { bean_name: 'Kenya', roast_date: null })).toBeNull();
+  });
+});
+
+describe('ratioDelta', () => {
+  it('returns actual ratio minus the target', () => {
+    expect(ratioDelta({ dose_g: 18, yield_g: 41.4 }, 2)).toBeCloseTo(0.3);
+  });
+
+  it('is negative when the shot is tighter than the target', () => {
+    expect(ratioDelta({ dose_g: 18, yield_g: 34.2 }, 2)).toBeCloseTo(-0.1);
   });
 });

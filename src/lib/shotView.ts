@@ -1,5 +1,6 @@
 // src/lib/shotView.ts
 import type { Shot } from './shots';
+import type { BagTarget } from './bagTargets';
 import type { ShotFormValues } from '../components/ShotForm';
 
 export type Bag = {
@@ -126,6 +127,28 @@ export function deltas(shot: Shot, previous: Shot): ShotDeltas {
 // Mirrored in supabase/functions/analyze-shot/shot-math.ts. Keep in sync.
 export function ratio(shot: Pick<Shot, 'dose_g' | 'yield_g'>): number {
   return shot.yield_g / shot.dose_g;
+}
+
+/** The target ratio the user set for this bag, or null when the bag has no
+ * bag_targets row. Keyed by bean_name + roast_date, the same pairing
+ * groupShotsByBag uses. */
+export function targetForBag(
+  targets: BagTarget[],
+  bag: { bean_name: string | null; roast_date: string | null }
+): number | null {
+  if (!targets || targets.length === 0) return null;
+  const key = bagKey(bag);
+  const match = targets.find((t) => bagKey(t) === key);
+  return match ? match.target_ratio : null;
+}
+
+/** Actual brew ratio minus the target. Positive means the shot ran wetter
+ * than aimed for, negative tighter. */
+export function ratioDelta(
+  shot: Pick<Shot, 'dose_g' | 'yield_g'>,
+  targetRatio: number
+): number {
+  return ratio(shot) - targetRatio;
 }
 
 export function formatRatio(value: number): string {
