@@ -75,10 +75,9 @@ Settled in the 2026-09-09 brainstorming conversation:
 
 ## 1. Data model
 
-New migration: `supabase/migrations/0000000000000N_bag_targets.sql`
-(the number is assigned at implementation time - `00000000000004` is
-free today but the Barista Assistant design also claims it, so whichever
-lands second takes `00000000000005`).
+New migration: `supabase/migrations/00000000000005_bag_targets.sql`
+(the Barista Assistant's `00000000000004_shot_analyses.sql` has shipped,
+so this takes slot 5).
 
 ```sql
 create table bag_targets (
@@ -341,11 +340,14 @@ resolve the target for `selectedBag`.
 In `RatioOverTimeChart`, when a target exists:
 
 - Extend the y domain to include the target so the line is never
-  off-canvas: `y = scaleLinear(min(...ratios, target), max(...ratios,
-  target), 170, 20)`.
+  off-canvas. `RatioOverTimeChart` now derives its y scale from
+  `niceDomain(ratios, 0.3)` (added by the trends-readability work), so
+  fold the target into that call's input: `niceDomain(target != null ?
+  [...ratios, target] : ratios, 0.3)`. Keep the chart's existing scale
+  output ranges and axis ticks; do not rewrite the function.
 - Draw a horizontal `<line>` at `y(target)` in `--color-accent-300`,
   dashed (`stroke-dasharray`), with a small `1:2.0` label at the right
-  edge in 10px `--color-neutral-600`.
+  edge using the chart's existing `TICK_STYLE`.
 
 The chart's caption ("Is a longer pull pulling wetter or drier?") is
 unchanged. `PullTimeConsistencyChart` and `RatingByShotChart` are not
