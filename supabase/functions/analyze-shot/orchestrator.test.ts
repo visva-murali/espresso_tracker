@@ -64,19 +64,21 @@ describe('runAnalysis', () => {
     expect(deps.getPriorShots).toHaveBeenCalledWith(expect.anything(), { mixedBeans: true });
   });
 
-  it('resolves the bag target for the shot and passes it into the prompt', async () => {
-    const deps = makeDeps({ getBagTarget: vi.fn().mockResolvedValue(2) });
+  it('resolves the bag target for the shot and passes ratio + range into the prompt', async () => {
+    const deps = makeDeps({
+      getBagTarget: vi.fn().mockResolvedValue({ ratio: 2, pullTime: [26, 31] }),
+    });
     await runAnalysis(deps, { shotId: 'shot-1' });
-    expect(deps.getBagTarget).toHaveBeenCalledWith(expect.objectContaining({ id: 'shot-1' }));
     const messages = (deps.callGroq as ReturnType<typeof vi.fn>).mock.calls[0][0];
     expect(messages.user).toContain('target ratio 1:2.00');
+    expect(messages.user).toContain('target pull time 26-31s');
   });
 
   it('tells the model no target is set when getBagTarget returns null', async () => {
     const deps = makeDeps({ getBagTarget: vi.fn().mockResolvedValue(null) });
     await runAnalysis(deps, { shotId: 'shot-1' });
     const messages = (deps.callGroq as ReturnType<typeof vi.fn>).mock.calls[0][0];
-    expect(messages.user).toContain('target ratio: none set for this bag');
+    expect(messages.user).toContain('target: none set for this bag');
   });
 
   it('records history_count from the prior shots returned', async () => {

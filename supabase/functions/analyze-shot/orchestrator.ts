@@ -30,8 +30,12 @@ export async function runAnalysis(deps: Deps, input: { shotId: string }): Promis
 
   const mixedBeans = shot.bean_name == null && shot.roast_date == null;
   const priorShots = await deps.getPriorShots(shot, { mixedBeans });
-  const targetRatio = await deps.getBagTarget(shot);
-  const messages = buildPrompt(shot, priorShots, { mixedBeans, targetRatio });
+  const bagTarget = await deps.getBagTarget(shot);
+  const messages = buildPrompt(shot, priorShots, {
+    mixedBeans,
+    targetRatio: bagTarget?.ratio ?? null,
+    pullTimeRange: bagTarget?.pullTime ?? null,
+  });
 
   let groqResult: GroqResult;
   try {
