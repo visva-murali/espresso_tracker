@@ -68,7 +68,7 @@ Env files are already set up by the human and are not the plan's concern:
 - `.env` holds `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, and `SUPABASE_LOCAL_SERVICE_ROLE_KEY`.
 - `supabase/functions/.env` holds `GROQ_API_KEY` and `GROQ_MODEL`.
 
-The integration-test tasks (1 and 9) additionally need the local Supabase stack running: `npx supabase start` (Docker must be running). If `npx supabase start` reports pending migrations after Task 1, run `npx supabase db reset` to replay all migrations against a clean local database.
+The integration-test tasks (1 and 9) additionally need the local Supabase stack running: `npx supabase start` (Docker must be running). After Task 1 adds migration 4, apply it with `npx supabase migration up` (additive - do not use `npx supabase db reset`, which wipes the shared local dev database).
 
 ---
 
@@ -132,8 +132,8 @@ for each row execute function set_updated_at();
 
 - [ ] **Step 2: Apply the migration to the local database**
 
-Run: `npx supabase db reset`
-Expected: completes without error, replaying migrations 1-4.
+Run: `npx supabase migration up`
+Expected: applies `00000000000004_shot_analyses` with no error. (Do not use `npx supabase db reset` - it wipes the shared local dev database.)
 
 - [ ] **Step 3: Extract the shared test-client helper**
 
@@ -308,7 +308,7 @@ describe('shot_analyses RLS isolation', () => {
 - [ ] **Step 6: Run the test to verify it passes**
 
 Run: `npx vitest run tests/integration/shot-analyses.test.ts`
-Expected: PASS on all four cases. (If it errors with `relation "shot_analyses" does not exist`, the migration in Step 2 did not apply - run `npx supabase db reset`.)
+Expected: PASS on all four cases. (If it errors with `relation "shot_analyses" does not exist`, the migration in Step 2 did not apply - re-run `npx supabase migration up`.)
 
 - [ ] **Step 7: Commit**
 
@@ -1608,10 +1608,10 @@ Rationale for `analysisReady`: `ShotAssistant` seeds its own state from `initial
 Run: `npx vitest run src/pages/ShotDetailPage.test.tsx`
 Expected: PASS, all tests including the two new ones.
 
-- [ ] **Step 5: Run the full unit suite and the build**
+- [ ] **Step 5: Run the full suite and the build**
 
-Run: `npx vitest run --exclude 'tests/integration/**' --exclude 'src/lib/shots.test.ts'`
-Expected: PASS. (These exclusions skip the tests that need the local Supabase stack, matching how the integration tests are run separately.)
+Run: `npx vitest run`
+Expected: PASS, every test file. (The local Supabase stack is running and `.env.test.local` is set, so the integration tests pass too.)
 
 Run: `npm run build`
 Expected: `tsc` and `vite build` both succeed. `tsc` covers `src` and `tests`; it does not compile `supabase/functions`, which is expected.
