@@ -125,7 +125,7 @@ function PullTimeConsistencyChart({
   const recent = [...shots].slice(0, 14).reverse();
   const times = recent.map((s) => s.pull_time_s);
   const median = medianOf(times);
-  const x = scaleLinear(0, Math.max(recent.length - 1, 1), 10, 330);
+  const x = scaleLinear(0, Math.max(recent.length - 1, 1), 18, 322);
   // Extend the domain to include the range so the band is never clipped.
   const lo = Math.min(...times, ...(range ?? [])) - 2;
   const hi = Math.max(...times, ...(range ?? [])) + 2;
@@ -149,7 +149,7 @@ function PullTimeConsistencyChart({
             height={y(range[0]) - y(range[1])}
             fill="var(--color-accent-100)"
           />
-          <text className="num" x="330" y={y(range[1]) - 3} textAnchor="end" style={TICK_STYLE}>
+          <text className="num" x="10" y={y(range[1]) - 3} style={TICK_STYLE}>
             {range[0]}-{range[1]}s
           </text>
         </>
