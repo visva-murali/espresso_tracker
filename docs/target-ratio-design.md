@@ -362,6 +362,14 @@ The chart's caption ("Is a longer pull pulling wetter or drier?") is
 unchanged. `PullTimeConsistencyChart` and `RatingByShotChart` are not
 touched.
 
+> **Superseded 2026-09-10.** The y scale is now
+> `ratioDomain(ratios, target)` (`src/lib/chartScale.ts`): a fixed
+> `target +/- 0.5` window centred on the target, widened only for a shot
+> outside it, replacing the `niceDomain(..., 0.3)` call above. The axis
+> ticks now show the scale bounds rather than the shot min/max, and the
+> `1:2.0` label is anchored to the left gutter level with the dashed
+> line, not the right edge. See `trends-followups.md` "Resolved".
+
 ### 4e. `ShotListPage.tsx` - the chip
 
 `ShotListPage` adds `listBagTargets()` to its load effect and keeps the
