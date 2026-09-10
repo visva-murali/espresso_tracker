@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ShotForm, emptyShotFormValues, type ShotFormValues } from '../components/ShotForm';
 import { BagSelector } from '../components/BagSelector';
 import { createShot, listShots, type Shot } from '../lib/shots';
-import { groupShotsByBag, referenceShot as pickReferenceShot, sameBag, bagKey, toFormValues, targetForBag, type Bag } from '../lib/shotView';
+import { groupShotsByBag, referenceShot as pickReferenceShot, sameBag, bagKey, toFormValues, targetForBag, pullTimeRangeForBag, type Bag } from '../lib/shotView';
 import { listBagTargets, setBagTarget, type BagTarget } from '../lib/bagTargets';
 import { validateVideoFile, uploadShotVideo } from '../lib/videos';
 import { LoadingBar } from '../components/LoadingBar';
@@ -76,6 +76,7 @@ export function NewShotPage() {
   const [bagTargets, setBagTargets] = useState<BagTarget[]>([]);
   const [bagTargetsLoaded, setBagTargetsLoaded] = useState(false);
   const [target, setTarget] = useState<number | null>(null);
+  const [pullTimeTarget, setPullTimeTarget] = useState<[number, number] | null>(null);
 
   useEffect(() => {
     listBagTargets()
@@ -137,8 +138,11 @@ export function NewShotPage() {
       shotId = shot.id;
       setCreatedShotId(shotId);
     }
-    if (target !== targetForBag(bagTargets, bagRef)) {
-      await setBagTarget(bagRef, { targetRatio: target, pullTime: null });
+    const storedRatio = targetForBag(bagTargets, bagRef);
+    const storedRange = pullTimeRangeForBag(bagTargets, bagRef);
+    const rangeChanged = JSON.stringify(storedRange) !== JSON.stringify(pullTimeTarget);
+    if (target !== storedRatio || rangeChanged) {
+      await setBagTarget(bagRef, { targetRatio: target, pullTime: pullTimeTarget });
     }
     if (videoFile) {
       await uploadShotVideo(shotId, videoFile);
@@ -164,11 +168,11 @@ export function NewShotPage() {
 
   useEffect(() => {
     if (!bagTargetsLoaded) return;
-    setTarget(
-      hasBagForTarget
-        ? targetForBag(bagTargets, { bean_name: targetBeanName, roast_date: targetRoastDate })
-        : null
-    );
+    const bag = hasBagForTarget
+      ? { bean_name: targetBeanName, roast_date: targetRoastDate }
+      : null;
+    setTarget(bag ? targetForBag(bagTargets, bag) : null);
+    setPullTimeTarget(bag ? pullTimeRangeForBag(bagTargets, bag) : null);
     // Keyed on the bag identity, not on bagTargets, so a late load never
     // clobbers a value the user picked.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -266,6 +270,8 @@ export function NewShotPage() {
           onSubmit={handleSubmit}
           target={target}
           onTargetChange={setTarget}
+          pullTimeTarget={pullTimeTarget}
+          onPullTimeTargetChange={setPullTimeTarget}
         >
           <div className="flex flex-col gap-1" style={{ padding: '0 var(--space-4) var(--space-4)' }}>
             <label htmlFor="video-input" className="text-sm" style={{ color: 'var(--color-accent)' }}>

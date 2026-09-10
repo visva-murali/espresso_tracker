@@ -283,4 +283,56 @@ describe('NewShotPage', () => {
     await waitFor(() => expect(createShot).toHaveBeenCalled());
     expect(setBagTarget).not.toHaveBeenCalled();
   });
+
+  it('seeds the pull-time range from the selected bag', async () => {
+    vi.mocked(listShots).mockResolvedValue([referenceShot]);
+    vi.mocked(listBagTargets).mockResolvedValue([
+      {
+        id: 't1',
+        user_id: 'user-1',
+        bean_name: referenceShot.bean_name,
+        roast_date: referenceShot.roast_date,
+        target_ratio: null,
+        target_pull_time_low_s: 26,
+        target_pull_time_high_s: 31,
+        created_at: '2026-09-04T00:00:00Z',
+        updated_at: '2026-09-04T00:00:00Z',
+      },
+    ]);
+
+    render(
+      <MemoryRouter>
+        <NewShotPage />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => expect(screen.getByText(/26s/)).toBeInTheDocument());
+    expect(screen.getByRole('button', { name: 'No pull time target' })).toHaveAttribute(
+      'aria-pressed',
+      'false'
+    );
+  });
+
+  it('persists a changed pull-time range on save', async () => {
+    vi.mocked(listShots).mockResolvedValue([referenceShot]);
+    vi.mocked(listBagTargets).mockResolvedValue([]);
+    vi.mocked(createShot).mockResolvedValue({ ...referenceShot, id: 'shot-new' });
+
+    render(
+      <MemoryRouter>
+        <NewShotPage />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => screen.getByRole('button', { name: 'No pull time target' }));
+    fireEvent.click(screen.getByRole('button', { name: 'No pull time target' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save shot' }));
+
+    await waitFor(() =>
+      expect(setBagTarget).toHaveBeenCalledWith(
+        { bean_name: referenceShot.bean_name, roast_date: referenceShot.roast_date },
+        expect.objectContaining({ pullTime: [26, 30] })
+      )
+    );
+  });
 });
