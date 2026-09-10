@@ -1,10 +1,16 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { EditShotPage } from './EditShotPage';
 import { getShot, updateShot } from '../lib/shots';
+import { listBagTargets, setBagTarget } from '../lib/bagTargets';
 
 vi.mock('../lib/shots', () => ({ getShot: vi.fn(), updateShot: vi.fn() }));
+
+vi.mock('../lib/bagTargets', () => ({
+  listBagTargets: vi.fn(),
+  setBagTarget: vi.fn(),
+}));
 
 const navigateMock = vi.fn();
 vi.mock('react-router-dom', async () => {
@@ -38,6 +44,12 @@ function renderAtShot(id: string) {
 }
 
 describe('EditShotPage', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(listBagTargets).mockResolvedValue([]);
+    vi.mocked(setBagTarget).mockResolvedValue(undefined);
+  });
+
   it('pre-fills the nudge rows from the shot\'s saved values with no delta shown', async () => {
     vi.mocked(getShot).mockResolvedValue(shot);
     renderAtShot('shot-1');
@@ -78,5 +90,59 @@ describe('EditShotPage', () => {
     renderAtShot('shot-1');
 
     await waitFor(() => expect(screen.getByText('Failed to load shot')).toBeInTheDocument());
+  });
+
+  it('seeds the target from the shot\'s bag', async () => {
+    vi.mocked(getShot).mockResolvedValue(shot);
+    vi.mocked(listBagTargets).mockResolvedValue([
+      {
+        id: 't1',
+        user_id: 'user-1',
+        bean_name: shot.bean_name,
+        roast_date: shot.roast_date,
+        target_ratio: 2.5,
+        created_at: '2026-09-04T00:00:00Z',
+        updated_at: '2026-09-04T00:00:00Z',
+      },
+    ]);
+
+    renderAtShot('shot-1');
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Target 1:2.5' })).toHaveAttribute('aria-pressed', 'true')
+    );
+  });
+
+  it('writes the target on save when it changed', async () => {
+    vi.mocked(getShot).mockResolvedValue(shot);
+    vi.mocked(updateShot).mockResolvedValue({ ...shot });
+    vi.mocked(listBagTargets).mockResolvedValue([]);
+
+    renderAtShot('shot-1');
+
+    await waitFor(() => screen.getByRole('button', { name: 'Target 1:2' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Target 1:2' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+
+    await waitFor(() =>
+      expect(setBagTarget).toHaveBeenCalledWith(
+        { bean_name: shot.bean_name, roast_date: shot.roast_date },
+        2
+      )
+    );
+  });
+
+  it('does not write the target when it was not touched', async () => {
+    vi.mocked(getShot).mockResolvedValue(shot);
+    vi.mocked(updateShot).mockResolvedValue({ ...shot });
+    vi.mocked(listBagTargets).mockResolvedValue([]);
+
+    renderAtShot('shot-1');
+
+    await waitFor(() => screen.getByRole('button', { name: 'Save changes' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+
+    await waitFor(() => expect(updateShot).toHaveBeenCalled());
+    expect(setBagTarget).not.toHaveBeenCalled();
   });
 });
