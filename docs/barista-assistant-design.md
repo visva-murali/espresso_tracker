@@ -110,7 +110,7 @@ Field notes:
   function upsert on that column so re-analyze overwrites in place.
 - `diagnosis` / `adjustment`: the model's two outputs, stored verbatim.
 - `model`: the Groq model id that produced this row (e.g.
-  `llama-3.3-70b-versatile`). Cheap to store, makes an old analysis
+  `openai/gpt-oss-120b`). Cheap to store, makes an old analysis
   interpretable.
 - `history_count`: how many prior shots were fed to the model for this
   analysis (0-8). Tells a future reader how much signal it had.
@@ -181,6 +181,9 @@ Error bodies are `{ "error": "<human-readable message>" }`.
 8. Call Groq `POST https://api.groq.com/openai/v1/chat/completions`:
    - model from `GROQ_MODEL` env var
    - `response_format: { type: "json_object" }`
+   - `reasoning_effort: "low"` - the free-tier models are reasoning
+     models and will otherwise spend the whole token budget on hidden
+     reasoning, returning an empty completion that fails JSON validation
    - `temperature: 0.3`, `max_tokens` small (a few hundred)
    - a fetch timeout (e.g. 20s); timeout or non-2xx -> `502` (or `429`
      if Groq said 429)
@@ -372,7 +375,7 @@ it does not block or blank the page.
   for both the first run and re-analyze.
 - **Present:** a "Diagnosis" block and a "Next shot" block, both set in
   the body font (never the heading font - it is changing content), then
-  a quiet metadata line `Analyzed Tue 14:32 · llama-3.3-70b` and a
+  a quiet metadata line `Analyzed Tue 14:32 · gpt-oss-120b` and a
   ghost **Re-analyze** button.
 - **Error:** an inline message inside the section; the section
   otherwise keeps whatever it was showing (an existing analysis stays
@@ -457,8 +460,11 @@ id returns a not-found error, not someone else's data.
 
 1. Create a Groq account and API key at `console.groq.com`. Hold it;
    do not paste it into any agent-visible location.
-2. Pick the model id (`GROQ_MODEL`) - a current Llama model on the
-   free tier.
+2. Pick the model id (`GROQ_MODEL`). List what the key can use with
+   `curl -s https://api.groq.com/openai/v1/models -H "Authorization:
+   Bearer $GROQ_API_KEY"`. `openai/gpt-oss-120b` is the current default;
+   any chat model works as long as `reasoning_effort: "low"` is sent
+   (already wired in `analyze-shot`).
 3. For local dev: put both values in `supabase/functions/.env`.
 4. For deploy: `supabase secrets set GROQ_API_KEY=... GROQ_MODEL=...`
    against the project, then `supabase functions deploy analyze-shot`.

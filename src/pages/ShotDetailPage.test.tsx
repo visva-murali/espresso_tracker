@@ -5,6 +5,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { ShotDetailPage } from './ShotDetailPage';
 import { getShot, listShots, deleteShot } from '../lib/shots';
 import { getVideoForShot, getVideoPlaybackUrl } from '../lib/videos';
+import { getAnalysisForShot } from '../lib/analyses';
 
 vi.mock('../lib/shots', () => ({ getShot: vi.fn(), listShots: vi.fn(), deleteShot: vi.fn() }));
 vi.mock('../lib/videos', () => ({
@@ -12,6 +13,17 @@ vi.mock('../lib/videos', () => ({
   getVideoPlaybackUrl: vi.fn(),
   validateVideoFile: vi.fn(),
   uploadShotVideo: vi.fn(),
+}));
+vi.mock('../lib/analyses', () => ({
+  getAnalysisForShot: vi.fn(),
+  analyzeShot: vi.fn(),
+  AnalyzeError: class AnalyzeError extends Error {
+    status: number;
+    constructor(status: number, message: string) {
+      super(message);
+      this.status = status;
+    }
+  },
 }));
 
 const navigateMock = vi.fn();
@@ -60,6 +72,7 @@ function renderAtShot(id: string) {
 describe('ShotDetailPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(getAnalysisForShot).mockResolvedValue(null);
   });
 
   it('renders the hero ratio, pull time, and delta block against the previous shot on the bag', async () => {
@@ -160,6 +173,40 @@ describe('ShotDetailPage', () => {
     const bar = screen.getByTestId('action-bar');
     expect(bar).toContainElement(screen.getByRole('button', { name: /delete shot/i }));
     expect(bar).toContainElement(screen.getByRole('link', { name: /pull another like this/i }));
+  });
+
+  it('renders the Barista assistant section after load', async () => {
+    vi.mocked(getShot).mockResolvedValue(shot);
+    vi.mocked(listShots).mockResolvedValue([shot]);
+    vi.mocked(getVideoForShot).mockResolvedValue(null);
+    vi.mocked(getAnalysisForShot).mockResolvedValue(null);
+
+    renderAtShot('shot-1');
+
+    await waitFor(() => expect(screen.getByText('Barista assistant')).toBeInTheDocument());
+    expect(screen.getByRole('button', { name: 'Analyze this shot' })).toBeInTheDocument();
+  });
+
+  it('shows an existing analysis on load', async () => {
+    vi.mocked(getShot).mockResolvedValue(shot);
+    vi.mocked(listShots).mockResolvedValue([shot]);
+    vi.mocked(getVideoForShot).mockResolvedValue(null);
+    vi.mocked(getAnalysisForShot).mockResolvedValue({
+      id: 'a1',
+      shot_id: 'shot-1',
+      user_id: 'user-1',
+      diagnosis: 'Running fast.',
+      adjustment: 'Grind finer.',
+      model: 'llama-3.3-70b-versatile',
+      history_count: 2,
+      created_at: '2026-09-04T07:42:00Z',
+      updated_at: '2026-09-04T07:42:00Z',
+    });
+
+    renderAtShot('shot-1');
+
+    await waitFor(() => expect(screen.getByText(/Running fast\./)).toBeInTheDocument());
+    expect(screen.getByRole('button', { name: 'Re-analyze' })).toBeInTheDocument();
   });
 
   it('deletes the shot after confirmation and navigates to the list', async () => {

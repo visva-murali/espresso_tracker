@@ -68,7 +68,7 @@ Env files are already set up by the human and are not the plan's concern:
 - `.env` holds `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, and `SUPABASE_LOCAL_SERVICE_ROLE_KEY`.
 - `supabase/functions/.env` holds `GROQ_API_KEY` and `GROQ_MODEL`.
 
-The integration-test tasks (1 and 9) additionally need the local Supabase stack running: `npx supabase start` (Docker must be running). If `npx supabase start` reports pending migrations after Task 1, run `npx supabase db reset` to replay all migrations against a clean local database.
+The integration-test tasks (1 and 9) additionally need the local Supabase stack running: `npx supabase start` (Docker must be running). After Task 1 adds migration 4, apply it with `npx supabase migration up` (additive - do not use `npx supabase db reset`, which wipes the shared local dev database).
 
 ---
 
@@ -132,8 +132,8 @@ for each row execute function set_updated_at();
 
 - [ ] **Step 2: Apply the migration to the local database**
 
-Run: `npx supabase db reset`
-Expected: completes without error, replaying migrations 1-4.
+Run: `npx supabase migration up`
+Expected: applies `00000000000004_shot_analyses` with no error. (Do not use `npx supabase db reset` - it wipes the shared local dev database.)
 
 - [ ] **Step 3: Extract the shared test-client helper**
 
@@ -308,7 +308,7 @@ describe('shot_analyses RLS isolation', () => {
 - [ ] **Step 6: Run the test to verify it passes**
 
 Run: `npx vitest run tests/integration/shot-analyses.test.ts`
-Expected: PASS on all four cases. (If it errors with `relation "shot_analyses" does not exist`, the migration in Step 2 did not apply - run `npx supabase db reset`.)
+Expected: PASS on all four cases. (If it errors with `relation "shot_analyses" does not exist`, the migration in Step 2 did not apply - re-run `npx supabase migration up`.)
 
 - [ ] **Step 7: Commit**
 
@@ -1608,10 +1608,10 @@ Rationale for `analysisReady`: `ShotAssistant` seeds its own state from `initial
 Run: `npx vitest run src/pages/ShotDetailPage.test.tsx`
 Expected: PASS, all tests including the two new ones.
 
-- [ ] **Step 5: Run the full unit suite and the build**
+- [ ] **Step 5: Run the full suite and the build**
 
-Run: `npx vitest run --exclude 'tests/integration/**' --exclude 'src/lib/shots.test.ts'`
-Expected: PASS. (These exclusions skip the tests that need the local Supabase stack, matching how the integration tests are run separately.)
+Run: `npx vitest run`
+Expected: PASS, every test file. (The local Supabase stack is running and `.env.test.local` is set, so the integration tests pass too.)
 
 Run: `npm run build`
 Expected: `tsc` and `vite build` both succeed. `tsc` covers `src` and `tests`; it does not compile `supabase/functions`, which is expected.
@@ -1637,26 +1637,32 @@ git commit -m "feat: show the barista assistant on the shot detail page"
 
 If the Groq key in `supabase/functions/.env` turns out to be missing or invalid when Step 1 runs, stop and report that Steps 2-4 are blocked on a working key.
 
-- [ ] **Step 1: Local end-to-end run**
+- [ ] **Step 1: Local end-to-end run (scripted, against the served function)**
 
-With the local Supabase stack and the function running:
+With the local Supabase stack running, serve the function with the real key:
 
 ```bash
-npx supabase start
 npx supabase functions serve analyze-shot --env-file supabase/functions/.env
 ```
 
-In another terminal run the app (`npm run dev`), sign in, and work through the checklist from `docs/barista-assistant-design.md` section 6 "Manual, end to end":
-- a shot with several prior same-bag shots returns a diagnosis and one adjustment
-- a shot with only 1-2 priors opens the diagnosis with the limited-signal caveat
-- re-analyze overwrites the row in place (check the section's timestamp changes, and `select count(*) from shot_analyses where shot_id = ...` stays 1)
-- reload the page: the analysis comes back
-- a shot with no bean name still returns, framed as "may be different beans"
-- confirm an error surfaces inline (temporarily set a bad `GROQ_API_KEY`, click Analyze, expect "The assistant is unavailable right now. Try again." and no page blank)
+Then drive it with a script (not a browser - the UI paths are covered by the
+component and page tests). Using the local admin API, create a test user, get
+their access token, insert a bag of shots, and `curl` the function:
 
-Record the outcome (pass, or the specific failure) in this task's checkbox note.
+- a shot with several prior same-bag shots -> 200 with `{ diagnosis, adjustment }`, both non-empty; a `shot_analyses` row is persisted
+- re-analyze the same shot -> still exactly one `shot_analyses` row for it, `updated_at` advanced (overwrite in place)
+- a shot with only 1-2 priors -> the diagnosis opens with a limited-signal caveat
+- a shot with no `bean_name` and no `roast_date` -> still 200 (mixed-beans framing)
+- another user's `shot_id` -> 404, not someone else's data
+- a deliberately bad `GROQ_API_KEY` -> the function returns 429/502 and `analyzeShot` would surface the generic "unavailable" message (the client mapping is already unit-tested; just confirm the function's status)
 
-- [ ] **Step 2: Deploy**
+Record the outcome (pass, or the specific failure) in this task's checkbox note. The real-browser spot check (button renders, page reload shows the analysis) is left to the human alongside Step 2.
+
+- [ ] **Step 2: Deploy (HUMAN-RUN - not the agent)**
+
+Deploying to the hosted Supabase project is an outward-facing action; the
+executing agent does NOT run this. The human runs, from the main checkout,
+once the branch is merged:
 
 ```bash
 npx supabase secrets set GROQ_API_KEY=<key> GROQ_MODEL=<model>
