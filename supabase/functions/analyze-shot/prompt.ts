@@ -19,11 +19,12 @@ const SYSTEM = [
   'move: at the same grind and dose, a few grams of yield or a few seconds of time is ordinary',
   'pull-to-pull variance (distribution, tamp, channeling), not a grind or dose effect.',
   '',
-  'Levers: grind finer slows the flow, lengthens the pull, and raises extraction (bitter if too',
-  'far); coarser reverses it - use grind for pull time or a sour/bitter imbalance. Yield is the',
-  'direct lever for ratio: stop earlier for less, later for more - use it for a small ratio',
-  'correction when time and taste are fine. More dose lowers the ratio at a fixed yield and adds',
-  'body.',
+  'Levers: grind does not set yield or ratio directly - yield is where you stop the shot, and',
+  'ratio is yield over dose. To move a ratio that is a little off while the pull time is fine,',
+  'change yield (stop earlier for less, later for more), not grind. To move the pull time, adjust',
+  'grind: finer is slower and longer, coarser is faster and shorter. Reach for grind only for a',
+  'pull-time miss or a clear sour/bitter imbalance. More dose lowers the ratio at a fixed yield',
+  'and adds body.',
   '',
   'Call a shot over- or under-extracted only from a tasting note (bitter or harsh = over, sour or',
   'thin = under) or a ratio more than about 0.1 off target. A ratio within about 0.1 of target is',
@@ -32,11 +33,11 @@ const SYSTEM = [
   'Give the diagnosis, then exactly one of:',
   '- one adjustment for the next shot: change one variable only, and name the value it should',
   '  move toward; or',
-  '- if the ratio is within about 0.1 of the target (or, with no target, close to recent shots)',
-  '  and no rating or tasting note flags a problem: say the shot is dialed and the adjustment is',
+  '- if the ratio is within about 0.1 of target (or, with no target, stable across recent shots),',
+  '  the pull time is inside the target range (or, with no range, in a sensible 25-32s band and',
+  '  steady), and no rating or note flags a problem: say the shot is dialed and the adjustment is',
   '  to repeat it unchanged. A pull time that moved a few seconds from the last shot at the same',
-  '  grind and dose does not disqualify this - note it as consistency to watch, do not change a',
-  '  variable for it.',
+  '  grind and dose does not disqualify this - note it as consistency to watch.',
   '',
   'If there are two or fewer prior shots on the bag, open the diagnosis by saying the signal is',
   'limited. Be concrete and terse, one or two sentences each, no line breaks. Do not hedge with',
@@ -58,19 +59,37 @@ function ratingPart(shot: ShotRow): string {
   return shot.rating != null ? `rating ${shot.rating}/5` : '(no rating)';
 }
 
-function targetLine(shot: ShotRow, targetRatio: number | null): string {
-  if (targetRatio == null) return '  target ratio: none set for this bag';
-  const distance = fmtSigned(ratio(shot) - targetRatio);
-  return `  target ratio 1:${targetRatio.toFixed(2)} (this shot is ${distance})`;
+function targetLine(
+  shot: ShotRow,
+  targetRatio: number | null,
+  pullTimeRange: [number, number] | null
+): string {
+  const clauses: string[] = [];
+  if (targetRatio != null) {
+    clauses.push(
+      `target ratio 1:${targetRatio.toFixed(2)} (this shot is ${fmtSigned(ratio(shot) - targetRatio)})`
+    );
+  }
+  if (pullTimeRange != null) {
+    const [low, high] = pullTimeRange;
+    const t = Math.round(shot.pull_time_s);
+    const pos = t < low ? `${t - low}s under` : t > high ? `+${t - high}s over` : 'in range';
+    clauses.push(`target pull time ${low}-${high}s (this shot ${t}s, ${pos})`);
+  }
+  return clauses.length ? `  ${clauses.join('; ')}` : '  target: none set for this bag';
 }
 
-function currentShotBlock(shot: ShotRow, targetRatio: number | null): string {
+function currentShotBlock(
+  shot: ShotRow,
+  targetRatio: number | null,
+  pullTimeRange: [number, number] | null
+): string {
   const when = new Date(shot.created_at).toISOString().slice(0, 16).replace('T', ' ');
   const lines = [
     `Shot being analyzed (${when} UTC):`,
     `  grind ${shot.grind_setting} | dose ${shot.dose_g}g | yield ${shot.yield_g}g | ` +
       `${fmtRatio(shot)} | ${Math.round(shot.pull_time_s)}s | ${ratingPart(shot)}`,
-    targetLine(shot, targetRatio),
+    targetLine(shot, targetRatio, pullTimeRange),
   ];
   if (shot.tasting_note) lines.push(`  note: "${shot.tasting_note}"`);
   return lines.join('\n');
@@ -138,7 +157,11 @@ function changeFromPreviousLine(current: ShotRow, previous: ShotRow): string {
 export function buildPrompt(
   shot: ShotRow,
   priorShots: ShotRow[],
-  opts: { mixedBeans: boolean; targetRatio: number | null },
+  opts: {
+    mixedBeans: boolean;
+    targetRatio: number | null;
+    pullTimeRange: [number, number] | null;
+  },
   now: Date = new Date()
 ): GroqMessages {
   const beanLine =
@@ -168,7 +191,7 @@ export function buildPrompt(
   const user = [
     beanLine,
     '',
-    currentShotBlock(shot, opts.targetRatio),
+    currentShotBlock(shot, opts.targetRatio, opts.pullTimeRange),
     ...changeLine,
     '',
     historyBlock,

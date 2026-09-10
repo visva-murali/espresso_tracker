@@ -2,7 +2,15 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { listShots, type Shot } from '../lib/shots';
-import { groupShotsByBag, ratio, sameBag, bagLabel, targetForBag, type Bag } from '../lib/shotView';
+import {
+  groupShotsByBag,
+  ratio,
+  sameBag,
+  bagLabel,
+  targetForBag,
+  pullTimeRangeForBag,
+  type Bag,
+} from '../lib/shotView';
 import { listBagTargets, type BagTarget } from '../lib/bagTargets';
 import { scaleLinear, medianOf, niceDomain } from '../lib/chartScale';
 import { BagSelector } from '../components/BagSelector';
@@ -107,12 +115,21 @@ function RatioOverTimeChart({
   );
 }
 
-function PullTimeConsistencyChart({ shots }: { shots: Shot[] }) {
+function PullTimeConsistencyChart({
+  shots,
+  range,
+}: {
+  shots: Shot[];
+  range: [number, number] | null;
+}) {
   const recent = [...shots].slice(0, 14).reverse();
   const times = recent.map((s) => s.pull_time_s);
   const median = medianOf(times);
   const x = scaleLinear(0, Math.max(recent.length - 1, 1), 10, 330);
-  const y = scaleLinear(Math.min(...times) - 2, Math.max(...times) + 2, 100, 10);
+  // Extend the domain to include the range so the band is never clipped.
+  const lo = Math.min(...times, ...(range ?? [])) - 2;
+  const hi = Math.max(...times, ...(range ?? [])) + 2;
+  const y = scaleLinear(lo, hi, 100, 10);
 
   // Below the trend threshold a connecting line reads as a confident slope
   // through two or three points. Show the shots as bare dots instead.
@@ -122,7 +139,29 @@ function PullTimeConsistencyChart({ shots }: { shots: Shot[] }) {
 
   return (
     <svg viewBox="0 0 340 120" width="100%">
-      <rect x="10" y={y(median + 1)} width="320" height={y(median - 1) - y(median + 1)} fill="var(--color-accent-100)" />
+      {range ? (
+        <>
+          <rect
+            data-band="target"
+            x="10"
+            y={y(range[1])}
+            width="320"
+            height={y(range[0]) - y(range[1])}
+            fill="var(--color-accent-100)"
+          />
+          <text className="num" x="330" y={y(range[1]) - 3} textAnchor="end" style={TICK_STYLE}>
+            {range[0]}-{range[1]}s
+          </text>
+        </>
+      ) : (
+        <rect
+          x="10"
+          y={y(median + 1)}
+          width="320"
+          height={y(median - 1) - y(median + 1)}
+          fill="var(--color-accent-100)"
+        />
+      )}
       <line x1="10" y1={y(median)} x2="330" y2={y(median)} stroke="var(--color-accent-300)" />
 
       {showLine && (
@@ -178,7 +217,15 @@ function RatingByShotChart({ shots }: { shots: Shot[] }) {
   );
 }
 
-function BagTrends({ bag, targetRatio }: { bag: Bag; targetRatio: number | null }) {
+function BagTrends({
+  bag,
+  targetRatio,
+  pullTimeRange,
+}: {
+  bag: Bag;
+  targetRatio: number | null;
+  pullTimeRange: [number, number] | null;
+}) {
   const shots = bag.shots;
   const recentTimes = shots.slice(0, 14).map((s) => s.pull_time_s);
   const medianTime = Math.round(medianOf(recentTimes));
@@ -206,7 +253,7 @@ function BagTrends({ bag, targetRatio }: { bag: Bag; targetRatio: number | null 
         <p style={CAPTION_STYLE}>
           Last {recentTimes.length} {recentTimes.length === 1 ? 'shot' : 'shots'} against your median of {medianTime}s.
         </p>
-        <PullTimeConsistencyChart shots={shots} />
+        <PullTimeConsistencyChart shots={shots} range={pullTimeRange} />
       </div>
       <div>
         <div className="num" style={KICKER_STYLE}>
@@ -274,7 +321,11 @@ export function TrendsPage() {
       ) : !selectedBag || selectedBag.shots.length === 0 ? (
         <p style={{ padding: 'var(--space-4)' }}>No shots logged yet.</p>
       ) : (
-        <BagTrends bag={selectedBag} targetRatio={targetForBag(bagTargets, selectedBag)} />
+        <BagTrends
+          bag={selectedBag}
+          targetRatio={targetForBag(bagTargets, selectedBag)}
+          pullTimeRange={pullTimeRangeForBag(bagTargets, selectedBag)}
+        />
       )}
     </div>
   );

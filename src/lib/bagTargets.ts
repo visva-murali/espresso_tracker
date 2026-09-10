@@ -5,12 +5,15 @@ export type BagTarget = {
   user_id: string;
   bean_name: string | null;
   roast_date: string | null;
-  target_ratio: number;
+  target_ratio: number | null;
+  target_pull_time_low_s: number | null;
+  target_pull_time_high_s: number | null;
   created_at: string;
   updated_at: string;
 };
 
 type BagRef = { bean_name: string | null; roast_date: string | null };
+type BagTargetValues = { targetRatio: number | null; pullTime: [number, number] | null };
 
 export async function listBagTargets(): Promise<BagTarget[]> {
   const { data, error } = await supabase.from('bag_targets').select();
@@ -31,10 +34,16 @@ async function findTargetId(bag: BagRef): Promise<string | null> {
   return data?.id ?? null;
 }
 
-export async function setBagTarget(bag: BagRef, targetRatio: number | null): Promise<void> {
+export async function setBagTarget(bag: BagRef, values: BagTargetValues): Promise<void> {
   const existingId = await findTargetId(bag);
+  const row = {
+    target_ratio: values.targetRatio,
+    target_pull_time_low_s: values.pullTime ? values.pullTime[0] : null,
+    target_pull_time_high_s: values.pullTime ? values.pullTime[1] : null,
+  };
+  const empty = row.target_ratio == null && row.target_pull_time_low_s == null;
 
-  if (targetRatio === null) {
+  if (empty) {
     if (!existingId) return;
     const { error } = await supabase.from('bag_targets').delete().eq('id', existingId);
     if (error) throw error;
@@ -42,10 +51,7 @@ export async function setBagTarget(bag: BagRef, targetRatio: number | null): Pro
   }
 
   if (existingId) {
-    const { error } = await supabase
-      .from('bag_targets')
-      .update({ target_ratio: targetRatio })
-      .eq('id', existingId);
+    const { error } = await supabase.from('bag_targets').update(row).eq('id', existingId);
     if (error) throw error;
     return;
   }
@@ -57,7 +63,7 @@ export async function setBagTarget(bag: BagRef, targetRatio: number | null): Pro
     user_id: userData.user.id,
     bean_name: bag.bean_name,
     roast_date: bag.roast_date,
-    target_ratio: targetRatio,
+    ...row,
   });
   if (error) throw error;
 }

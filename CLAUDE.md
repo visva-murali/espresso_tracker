@@ -52,17 +52,21 @@ are set once with `supabase secrets set` and are not part of this script.
   the barista assistant's `diagnosis`, `adjustment`, the `model` that
   produced them, and `history_count`. Denormalized `user_id` for RLS,
   mirroring `videos`. Written only by the `analyze-shot` Edge Function.
-- `bag_targets`: optional per-bag target brew ratio. One row per bag,
-  keyed by `user_id` + `bean_name` + `roast_date` (the same pairing
-  `groupShotsByBag` uses), plus a `target_ratio` numeric. No row means
-  the bag has no target. Set only from the shot form (New or Edit),
-  persisted when the shot is saved.
+- `bag_targets`: optional per-bag targets, one row per bag, keyed by
+  `user_id` + `bean_name` + `roast_date` (the pairing `groupShotsByBag`
+  uses). Holds a nullable `target_ratio` and a nullable pull-time window
+  (`target_pull_time_low_s` / `target_pull_time_high_s`, both null or
+  both set, `5 <= low < high <= 120`). The row exists when either is
+  set; clearing both deletes it. Set only from the shot form (New or
+  Edit), persisted when the shot is saved.
 - RLS on all four tables restricts every operation to `user_id = auth.uid()`.
   Storage bucket policies mirror the same rule against the key prefix
   (`{user_id}/{shot_id}/{uuid}.{ext}`).
 - The shot list's dialed/dialing tag (`src/lib/shotView.ts` `bagState`)
-  compares the last two shots to the bag's `target_ratio` when one is
-  set, and falls back to shot-to-shot ratio convergence when it is not.
+  compares the last two shots to the bag's `target_ratio` and pull-time
+  window when set, and falls back to shot-to-shot convergence (ratio
+  within tolerance, pull times within 2s of each other) for whichever is
+  not set.
 - No `profiles` table in v1 - nothing needs app-specific user data beyond
   `auth.users`.
 - `bean_name` and `roast_date` are plain fields on `shots`, not a normalized
@@ -87,19 +91,19 @@ are set once with `supabase secrets set` and are not part of this script.
 
 On-demand shot troubleshooting on the shot detail page. The
 `analyze-shot` Supabase Edge Function reads the shot, up to 8 prior
-same-bag shots, and the bag's `target_ratio` (all through the caller's
-JWT, RLS enforces ownership), calls Groq (free tier, key held
-server-side in the function's env, never in the client), and upserts a
-`shot_analyses` row. Design and rationale:
+same-bag shots, and the bag's `target_ratio` and pull-time window (all
+through the caller's JWT, RLS enforces ownership), calls Groq (free
+tier, key held server-side in the function's env, never in the client),
+and upserts a `shot_analyses` row. Design and rationale:
 `docs/barista-assistant-design.md`. No CV dependency; this is Phase 2
 piece B from `docs/mvp_spec.md`.
 
 The prompt (`supabase/functions/analyze-shot/prompt.ts`) judges the shot
-against the bag's target ratio when one is set rather than inferring
-intent from history, is handed the exact shot-to-shot deltas so it does
-not miscompute them, and can return "dialed, repeat it" instead of
-being forced to recommend a change. A per-bag target pull time (Spec 2,
-not built) would slot into the same prompt.
+against the bag's target ratio and pull-time range when set rather than
+inferring intent from history, is handed the exact shot-to-shot deltas
+so it does not miscompute them, can return "dialed, repeat it" instead
+of being forced to recommend a change, and knows that grind moves pull
+time while yield (not grind) moves ratio.
 
 ## Definition of done for v1
 

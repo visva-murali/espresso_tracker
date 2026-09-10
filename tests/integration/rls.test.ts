@@ -144,4 +144,39 @@ describe('bag_targets RLS isolation', () => {
       .single();
     expect(second.error).not.toBeNull();
   });
+
+  it('allows a row with a pull-time range and no ratio target', async () => {
+    const a = await createTestUserClient(`rls-bt-pt-${Date.now()}@test.local`);
+    const { error } = await a.client
+      .from('bag_targets')
+      .insert({
+        user_id: a.userId,
+        bean_name: 'Ethiopia',
+        roast_date: '2026-09-01',
+        target_ratio: null,
+        target_pull_time_low_s: 26,
+        target_pull_time_high_s: 31,
+      });
+    expect(error).toBeNull();
+  });
+
+  it('rejects a half-set range and an inverted range', async () => {
+    const a = await createTestUserClient(`rls-bt-pt2-${Date.now()}@test.local`);
+
+    const half = await a.client
+      .from('bag_targets')
+      .insert({ user_id: a.userId, bean_name: 'A', roast_date: null, target_pull_time_low_s: 26 });
+    expect(half.error).not.toBeNull();
+
+    const inverted = await a.client
+      .from('bag_targets')
+      .insert({
+        user_id: a.userId,
+        bean_name: 'B',
+        roast_date: null,
+        target_pull_time_low_s: 31,
+        target_pull_time_high_s: 26,
+      });
+    expect(inverted.error).not.toBeNull();
+  });
 });

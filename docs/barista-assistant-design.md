@@ -229,9 +229,9 @@ The handler is split so its logic is unit-testable without Deno,
 Docker, or a network:
 
 - `shot-math.ts`, `prompt.ts` - pure, no imports. `buildPrompt(shot,
-  priorShots, { mixedBeans, targetRatio })` returns the `{ system, user }`
-  message pair. It also renders the `Change from the previous shot` line
-  from `priorShots[0]`.
+  priorShots, { mixedBeans, targetRatio, pullTimeRange })` returns the
+  `{ system, user }` message pair. It also renders the `Change from the
+  previous shot` line from `priorShots[0]`.
 - `orchestrator.ts` - `runAnalysis(deps, { shotId })` where `deps` is
   `{ getShot, getPriorShots, getBagTarget, callGroq, saveAnalysis, model }`.
   This holds all the branching: `404` when `getShot` returns null, `422`
@@ -344,6 +344,14 @@ current prompt (see Non-goals). The prompt has changed since v0:
   called a rising rating a falling one and built a diagnosis on it), and
   the system prompt was tightened on pull-time variance and on what
   counts as over/under-extraction.
+- **2026-09-10 - pull-time range + lever map:** `getBagTarget` now
+  returns `{ ratio, pullTime: [low, high] | null }`; `buildPrompt` opts
+  gains `pullTimeRange`, rendered as a `target pull time L-Hs (this shot
+  Ns, in range / +Ms over)` clause. The "Levers:" paragraph was
+  rewritten to state that grind does not set yield or ratio (yield is
+  where you stop the shot; grind moves pull time), after the model kept
+  prescribing a grind change for a small ratio correction. Design:
+  `docs/target-pull-time-design.md`.
 
 ---
 
