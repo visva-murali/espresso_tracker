@@ -4,6 +4,7 @@
   "version": "0.0.1",
   "type": "module",
   "description": "Tracker for espresso shots - dial-in settings, tasting notes, and results over time.",
+  "license": "MIT",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
