@@ -1,9 +1,11 @@
 import { useAuth } from '../context/AuthContext';
+import { Logo } from '../components/Logo';
 
 export function LoginPage() {
   const { signInWithGoogle } = useAuth();
   return (
     <div className="flex flex-col items-center justify-center min-h-screen gap-4">
+      <Logo size={44} style={{ color: 'var(--color-accent)' }} />
       <h1 className="text-2xl font-semibold">Espresso Shot Tracker</h1>
       <button
         onClick={() => signInWithGoogle()}

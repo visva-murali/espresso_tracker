@@ -1,0 +1,16 @@
+<!--
+  App favicon: the cup-with-crema mark, drawn as a hand-kept copy of
+  src/components/Logo.tsx (open rim, stroke only, no filled disc). If the
+  Logo shape changes, update this file to match - they do not share a
+  source. Stroke is a little heavier than the header Logo so the mark
+  stays legible at 16px tab size.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <rect width="32" height="32" rx="7" fill="#f3f2f2" />
+  <g fill="none" stroke="#b68235" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round">
+    <ellipse cx="14" cy="11" rx="6" ry="2.3" />
+    <path d="M8 11v6a6 6 0 0 0 12 0v-6" />
+    <path d="M20 12.5a3 3 0 0 1 0 6" />
+    <line x1="6" y1="24" x2="22" y2="24" />
+  </g>
+</svg>
