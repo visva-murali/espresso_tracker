@@ -277,4 +277,53 @@ describe('ShotDetailPage', () => {
     await screen.findByText(/Kenya Nyeri AA/);
     expect(screen.queryByText(/target 1:/)).not.toBeInTheDocument();
   });
+
+  it('shows the pull-time range and the shot\'s position in it', async () => {
+    vi.mocked(getShot).mockResolvedValue(shot);
+    vi.mocked(listShots).mockResolvedValue([shot]);
+    vi.mocked(getVideoForShot).mockResolvedValue(null);
+    vi.mocked(listBagTargets).mockResolvedValue([
+      {
+        id: 't1',
+        user_id: 'user-1',
+        bean_name: shot.bean_name,
+        roast_date: shot.roast_date,
+        target_ratio: null,
+        target_pull_time_low_s: 26,
+        target_pull_time_high_s: 31,
+        created_at: '2026-09-04T00:00:00Z',
+        updated_at: '2026-09-04T00:00:00Z',
+      },
+    ]);
+
+    renderAtShot('shot-1');
+
+    // 28s inside 26-31s
+    expect(await screen.findByText(/26-31s/)).toBeInTheDocument();
+    expect(screen.getByText(/28s in range/)).toBeInTheDocument();
+  });
+
+  it('shows both the ratio delta and the range when both are set', async () => {
+    vi.mocked(getShot).mockResolvedValue({ ...shot, yield_g: 37 }); // 1:2.06
+    vi.mocked(listShots).mockResolvedValue([{ ...shot, yield_g: 37 }]);
+    vi.mocked(getVideoForShot).mockResolvedValue(null);
+    vi.mocked(listBagTargets).mockResolvedValue([
+      {
+        id: 't1',
+        user_id: 'user-1',
+        bean_name: shot.bean_name,
+        roast_date: shot.roast_date,
+        target_ratio: 2,
+        target_pull_time_low_s: 26,
+        target_pull_time_high_s: 31,
+        created_at: '2026-09-04T00:00:00Z',
+        updated_at: '2026-09-04T00:00:00Z',
+      },
+    ]);
+
+    renderAtShot('shot-1');
+
+    expect(await screen.findByText(/target 1:2\.0/)).toBeInTheDocument();
+    expect(screen.getByText(/26-31s/)).toBeInTheDocument();
+  });
 });
