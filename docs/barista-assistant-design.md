@@ -229,15 +229,17 @@ The handler is split so its logic is unit-testable without Deno,
 Docker, or a network:
 
 - `shot-math.ts`, `prompt.ts` - pure, no imports. `buildPrompt(shot,
-  priorShots, { mixedBeans })` returns the `{ system, user }` message
-  pair.
+  priorShots, { mixedBeans, targetRatio })` returns the `{ system, user }`
+  message pair. It also renders the `Change from the previous shot` line
+  from `priorShots[0]`.
 - `orchestrator.ts` - `runAnalysis(deps, { shotId })` where `deps` is
-  `{ getShot, getPriorShots, callGroq, saveAnalysis, model }`. This
-  holds all the branching: `404` when `getShot` returns null, `422` on
-  the numeric guard, the same-bag vs `mixedBeans` history choice, the
-  Groq response validation, the mapping of a thrown Groq error to
-  `429`/`502`, and the final `saveAnalysis` call. It returns
-  `{ status, body }`. No Deno or Supabase types cross into this file.
+  `{ getShot, getPriorShots, getBagTarget, callGroq, saveAnalysis, model }`.
+  This holds all the branching: `404` when `getShot` returns null, `422`
+  on the numeric guard, the same-bag vs `mixedBeans` history choice, the
+  bag-target lookup, the Groq response validation, the mapping of a
+  thrown Groq error to `429`/`502`, and the final `saveAnalysis` call. It
+  returns `{ status, body }`. No Deno or Supabase types cross into this
+  file.
 - `index.ts` - `Deno.serve` wiring only: CORS, body parse, construct
   the real `deps` (a supabase-js client carrying the caller's
   `Authorization` header; a `callGroq` that does the real `fetch` with
@@ -252,46 +254,70 @@ covered by the manual end-to-end checklist.
 
 ## 3. The prompt
 
+The authoritative copy lives in `supabase/functions/analyze-shot/prompt.ts`.
+This section describes what it does and why; when they disagree, the code
+wins. See "Prompt revisions" at the end of this section for the change
+history.
+
 ### System message (fixed)
 
-> You are an espresso dial-in assistant. You are given one espresso
-> shot and the recent shots that came before it on the same bag.
-> Reason only from the numbers provided: dose, yield, ratio
-> (yield/dose), pull time, grind setting, and any ratings or tasting
-> notes. Diagnose what the current shot's numbers indicate about
-> extraction (fast or slow, under- or over-extracted, ratio high or
-> low), using the trend across prior shots when it is informative.
-> Then give exactly one adjustment for the next shot: change one
-> variable only, and say what target it should move toward. If there
-> are two or fewer prior shots on the bag, open the diagnosis by
-> saying the signal is limited. Be concrete and terse. Do not hedge
-> with multiple options. Do not discuss equipment, water, or beans you
-> were not told about.
->
-> Respond only as JSON: `{"diagnosis": "...", "adjustment": "..."}`.
-> Each value is one or two sentences with no line breaks.
+The current system message tells the model to:
+
+- Reason only from the numbers given: dose, yield, ratio, pull time,
+  grind, ratings, tasting notes.
+- **Judge the shot against the bag's target ratio when one is set** -
+  that is the user's stated intent, not something to infer from history.
+  History is for trend only. With no target, reason from the numbers and
+  trend alone.
+- **Trust the "Change from the previous shot" line as given** and never
+  describe a change in the opposite direction to what it states.
+- Not attribute a shot-to-shot change to a variable that did not move:
+  at a fixed grind and dose, a few grams of yield or seconds of time is
+  pull-to-pull variance, not a grind or dose effect.
+- Use the lever map: grind for pull time and sour/bitter balance; yield
+  as the direct lever for a small ratio correction when time and taste
+  are fine; dose for ratio-plus-body.
+- Call a shot over- or under-extracted only from a tasting note or a
+  ratio more than ~0.1 off target - not from a sub-0.1 ratio gap.
+- Return **exactly one of**: a single-variable adjustment, or "the shot
+  is dialed, repeat it unchanged" when the ratio is within ~0.1 of
+  target and nothing in the ratings or notes flags a problem. A pull
+  time that moved a few seconds at the same grind and dose does not
+  disqualify "dialed" - it is noted as consistency to watch.
+- Open with "signal is limited" when there are two or fewer prior shots.
+- Respond only as JSON `{"diagnosis": "...", "adjustment": "..."}`.
 
 ### User message (data, assembled server-side)
 
-Compact lines, numbers pre-computed:
+Compact lines, all numbers pre-computed:
 
 ```
-Bean: Kenya Nyeri AA, roasted 2026-08-23 (12 days off roast)
+Bean: Lavazza Super Crema, roasted 2026-08-30 (11 days off roast)
 
-Shot being analyzed (Tue 4 Sep, 07:42):
-  grind 18.0 | dose 18.0g | yield 41.5g | ratio 1:2.31 | time 32s | rating 2/5
-  note: "sharp, sour finish"
+Shot being analyzed (2026-09-10 09:04 UTC):
+  grind 15 | dose 18g | yield 37g | 1:2.06 | 30s | rating 4/5
+  target ratio 1:2.00 (this shot is +0.06)
+
+Change from the previous shot: grind unchanged, dose +0.0g, yield -1.0g, time +5s, rating +1
 
 Prior shots on this bag (newest first):
-  1 day earlier: grind 18.0 | 18.0g -> 37.4g | 1:2.08 | 28s | rating 3/5
-  2 days earlier: grind 20.0 | 18.0g -> 36.1g | 1:2.01 | 26s | (no rating)
+  1 day earlier: grind 15 | 18g -> 38g | 1:2.11 | 25s | rating 3/5
   ...
 ```
 
 Rules for assembly:
 
-- Grind is inserted verbatim (free text per the schema). The prompt
-  says "grind setting" and never assumes it is numeric.
+- The `target ratio` line shows `1:X.XX (this shot is +/-D.DD)` when the
+  bag has a `bag_targets` row, or `target ratio: none set for this bag`.
+- The `Change from the previous shot` line is rendered only same-bag
+  with a previous shot present (not in the `mixedBeans` fallback, where
+  the previous shot may be a different bag). Grind is a signed numeric
+  delta when both settings parse as numbers, `grind unchanged` when
+  equal, or the raw `"<prev>" -> "<cur>"` otherwise. Rating delta is
+  omitted unless both shots are rated. Mirrors `deltas()` in
+  `src/lib/shotView.ts` for grind / dose / yield / time.
+- Grind is inserted verbatim (free text per the schema); the prompt
+  never assumes it is numeric.
 - Omit fields that are null (`rating`, `tasting_note`, `roast_date`,
   `bean_name`) rather than printing "null".
 - When the `mixedBeans` fallback path is used: the `Bean:` line
@@ -299,6 +325,25 @@ Rules for assembly:
   `Recent shots (may be different beans, newest first):`.
 - When there are zero prior shots, the prior-shots block is replaced
   with `No prior shots on this bag.`
+
+### Prompt revisions
+
+The stored analyses are historical records, not tracked against the
+current prompt (see Non-goals). The prompt has changed since v0:
+
+- **v0 (2026-09-09):** the original in the git history. Diagnosed
+  extraction from the numbers and always returned exactly one
+  adjustment. No target ratio, no pre-computed deltas.
+- **2026-09-10 - target ratio + "dialed" path:** the bag's
+  `target_ratio` is read by the orchestrator and passed in; the model
+  judges against it instead of inferring intent, and may answer "dialed,
+  repeat it" instead of being forced to recommend a change. Design:
+  `docs/target-ratio-design.md`.
+- **2026-09-10 - pre-computed deltas:** the exact shot-to-shot changes
+  are rendered as a line so the model stops miscomputing them (it had
+  called a rising rating a falling one and built a diagnosis on it), and
+  the system prompt was tightened on pull-time variance and on what
+  counts as over/under-extraction.
 
 ---
 
