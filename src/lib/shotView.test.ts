@@ -11,6 +11,8 @@ import {
   daysSinceRoast,
   targetForBag,
   ratioDelta,
+  pullTimeRangeForBag,
+  pullTimeAgainstRange,
 } from './shotView';
 import type { Shot } from './shots';
 import type { BagTarget } from './bagTargets';
@@ -145,6 +147,40 @@ describe('bagState', () => {
     ];
     expect(bagState(shots, { targetRatio: 2, now: new Date('2026-09-04') })).toBe('resting');
   });
+
+  it('is dialed when both recent shots land inside the pull-time range', () => {
+    const shots = [
+      makeShot({ id: 'a', roast_date: '2026-08-10', dose_g: 18, yield_g: 36, pull_time_s: 29 }),
+      makeShot({ id: 'b', roast_date: '2026-08-10', dose_g: 18, yield_g: 36, pull_time_s: 27 }),
+    ];
+    expect(bagState(shots, { pullTimeRange: [26, 31], now: new Date('2026-09-04') })).toBe('dialed');
+  });
+
+  it('is dialing when one recent shot is outside the range, even if the two shots agree', () => {
+    const shots = [
+      makeShot({ id: 'a', roast_date: '2026-08-10', dose_g: 18, yield_g: 36, pull_time_s: 24 }),
+      makeShot({ id: 'b', roast_date: '2026-08-10', dose_g: 18, yield_g: 36, pull_time_s: 25 }),
+    ];
+    expect(bagState(shots, { pullTimeRange: [26, 31], now: new Date('2026-09-04') })).toBe('dialing');
+  });
+
+  it('with a range set, still requires the ratio target when one is also given', () => {
+    const shots = [
+      makeShot({ id: 'a', roast_date: '2026-08-10', dose_g: 18, yield_g: 45, pull_time_s: 29 }), // 1:2.5
+      makeShot({ id: 'b', roast_date: '2026-08-10', dose_g: 18, yield_g: 45, pull_time_s: 28 }),
+    ];
+    expect(
+      bagState(shots, { targetRatio: 2, pullTimeRange: [26, 31], now: new Date('2026-09-04') })
+    ).toBe('dialing');
+  });
+
+  it('with no range set, the pull-time check is shot-to-shot as before', () => {
+    const shots = [
+      makeShot({ id: 'a', roast_date: '2026-08-10', dose_g: 18, yield_g: 36, pull_time_s: 40 }),
+      makeShot({ id: 'b', roast_date: '2026-08-10', dose_g: 18, yield_g: 36, pull_time_s: 41 }),
+    ];
+    expect(bagState(shots, { now: new Date('2026-09-04') })).toBe('dialed');
+  });
 });
 
 describe('referenceShot', () => {
@@ -253,5 +289,41 @@ describe('ratioDelta', () => {
 
   it('is negative when the shot is tighter than the target', () => {
     expect(ratioDelta({ dose_g: 18, yield_g: 34.2 }, 2)).toBeCloseTo(-0.1);
+  });
+});
+
+describe('pullTimeRangeForBag', () => {
+  const withRange = (over: Partial<BagTarget>) =>
+    makeTarget({ target_pull_time_low_s: 26, target_pull_time_high_s: 31, ...over });
+
+  it('returns [low, high] for the matching bag', () => {
+    const targets = [withRange({ bean_name: 'Kenya Nyeri AA', roast_date: '2026-08-23' })];
+    expect(
+      pullTimeRangeForBag(targets, { bean_name: 'Kenya Nyeri AA', roast_date: '2026-08-23' })
+    ).toEqual([26, 31]);
+  });
+
+  it('returns null when the matching bag has no range set', () => {
+    const targets = [makeTarget({ target_pull_time_low_s: null, target_pull_time_high_s: null })];
+    expect(
+      pullTimeRangeForBag(targets, { bean_name: 'Kenya Nyeri AA', roast_date: '2026-08-23' })
+    ).toBeNull();
+  });
+
+  it('returns null when no bag matches or the list is empty', () => {
+    expect(pullTimeRangeForBag([], { bean_name: 'X', roast_date: null })).toBeNull();
+  });
+});
+
+describe('pullTimeAgainstRange', () => {
+  it('is in range at the inclusive bounds', () => {
+    expect(pullTimeAgainstRange(26, [26, 31])).toEqual({ state: 'in', delta: 0 });
+    expect(pullTimeAgainstRange(31, [26, 31])).toEqual({ state: 'in', delta: 0 });
+  });
+  it('is over with a positive delta past the high bound', () => {
+    expect(pullTimeAgainstRange(34, [26, 31])).toEqual({ state: 'over', delta: 3 });
+  });
+  it('is under with a negative delta below the low bound', () => {
+    expect(pullTimeAgainstRange(22, [26, 31])).toEqual({ state: 'under', delta: -4 });
   });
 });

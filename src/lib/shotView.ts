@@ -78,17 +78,22 @@ export function daysSinceRoast(roastDate: string, now: Date = new Date()): numbe
  * means no tag; roast-date bookends take precedence over any dial-in check
  * when roast_date is known.
  *
- * When `options.targetRatio` is set (the bag has a bag_targets row),
- * "dialed" means the last two shots each land within DIALED_RATIO_TOLERANCE
- * of that target and within DIALED_TIME_TOLERANCE_S of each other on pull
- * time. When it is not set, "dialed" falls back to shot-to-shot ratio
- * convergence between the last two shots.
+ * When `options.targetRatio` is set (the bag has a target ratio), "dialed"
+ * requires the last two shots each within DIALED_RATIO_TOLERANCE of that
+ * target; otherwise it falls back to shot-to-shot ratio convergence.
+ * Likewise `options.pullTimeRange`: when set, both recent shots must land
+ * inside the window; otherwise pull times must be within
+ * DIALED_TIME_TOLERANCE_S of each other.
  */
 export function bagState(
   bagShots: Shot[],
-  options: { targetRatio?: number | null; now?: Date } = {}
+  options: {
+    targetRatio?: number | null;
+    pullTimeRange?: [number, number] | null;
+    now?: Date;
+  } = {}
 ): BagStateValue {
-  const { targetRatio = null, now = new Date() } = options;
+  const { targetRatio = null, pullTimeRange = null, now = new Date() } = options;
   if (bagShots.length <= 1) return null;
 
   const [latest, previous] = bagShots;
@@ -99,16 +104,20 @@ export function bagState(
     if (age < RESTING_MAX_DAYS) return 'resting';
   }
 
-  const timeStable =
-    Math.abs(latest.pull_time_s - previous.pull_time_s) <= DIALED_TIME_TOLERANCE_S;
+  const ratioOk =
+    targetRatio != null
+      ? Math.abs(ratio(latest) - targetRatio) <= DIALED_RATIO_TOLERANCE &&
+        Math.abs(ratio(previous) - targetRatio) <= DIALED_RATIO_TOLERANCE
+      : Math.abs(ratio(latest) - ratio(previous)) <= DIALED_RATIO_TOLERANCE;
 
-  if (targetRatio != null) {
-    const onTarget = (s: Shot) => Math.abs(ratio(s) - targetRatio) <= DIALED_RATIO_TOLERANCE;
-    return onTarget(latest) && onTarget(previous) && timeStable ? 'dialed' : 'dialing';
-  }
+  const inRange = (s: Shot) =>
+    s.pull_time_s >= pullTimeRange![0] && s.pull_time_s <= pullTimeRange![1];
+  const timeOk =
+    pullTimeRange != null
+      ? inRange(latest) && inRange(previous)
+      : Math.abs(latest.pull_time_s - previous.pull_time_s) <= DIALED_TIME_TOLERANCE_S;
 
-  const ratioStable = Math.abs(ratio(latest) - ratio(previous)) <= DIALED_RATIO_TOLERANCE;
-  return ratioStable && timeStable ? 'dialed' : 'dialing';
+  return ratioOk && timeOk ? 'dialed' : 'dialing';
 }
 
 /** The most recent shot on the bag. v1 has no is_reference flag to star a different one. */
@@ -164,6 +173,34 @@ export function ratioDelta(
   targetRatio: number
 ): number {
   return ratio(shot) - targetRatio;
+}
+
+/** The pull-time window the user set for this bag, or null when the bag has
+ * no window. Keyed by bean_name + roast_date, like targetForBag. */
+export function pullTimeRangeForBag(
+  targets: BagTarget[],
+  bag: { bean_name: string | null; roast_date: string | null }
+): [number, number] | null {
+  if (!targets || targets.length === 0) return null;
+  const key = bagKey(bag);
+  const match = targets.find((t) => bagKey(t) === key);
+  if (!match || match.target_pull_time_low_s == null || match.target_pull_time_high_s == null) {
+    return null;
+  }
+  return [match.target_pull_time_low_s, match.target_pull_time_high_s];
+}
+
+/** Where a pull time sits relative to a target window. `delta` is 0 in
+ * range, positive seconds over the high bound, negative seconds under the
+ * low bound. Bounds are inclusive. */
+export function pullTimeAgainstRange(
+  pullTimeS: number,
+  range: [number, number]
+): { state: 'under' | 'in' | 'over'; delta: number } {
+  const [low, high] = range;
+  if (pullTimeS < low) return { state: 'under', delta: pullTimeS - low };
+  if (pullTimeS > high) return { state: 'over', delta: pullTimeS - high };
+  return { state: 'in', delta: 0 };
 }
 
 export function formatRatio(value: number): string {
