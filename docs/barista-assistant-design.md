@@ -87,9 +87,15 @@ alter table shot_analyses enable row level security;
 create policy "shot_analyses_select_own" on shot_analyses
   for select using (auth.uid() = user_id);
 create policy "shot_analyses_insert_own" on shot_analyses
-  for insert with check (auth.uid() = user_id);
+  for insert with check (
+    auth.uid() = user_id
+    and exists (select 1 from shots s where s.id = shot_id and s.user_id = auth.uid())
+  );
 create policy "shot_analyses_update_own" on shot_analyses
-  for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+  for update using (auth.uid() = user_id) with check (
+    auth.uid() = user_id
+    and exists (select 1 from shots s where s.id = shot_id and s.user_id = auth.uid())
+  );
 create policy "shot_analyses_delete_own" on shot_analyses
   for delete using (auth.uid() = user_id);
 
@@ -111,6 +117,9 @@ Field notes:
 - No `prompt_version` column, deliberately (see Non-goals).
 - `on delete cascade` from `shots`: deleting a shot removes its
   analysis, same as `videos`.
+- The `insert` and `update` policies also require the referenced shot
+  to belong to the caller, matching the hardened `videos` policies in
+  migration `00000000000003`.
 
 RLS isolation gets an explicit cross-user test, mirroring the existing
 `tests/integration/rls.test.ts` cases for `shots` and `videos`.
@@ -193,8 +202,10 @@ Error bodies are `{ "error": "<human-readable message>" }`.
 - The key is read only inside the function via `Deno.env.get`. It is
   never returned in a response, logged, or exposed to the client.
 - `GROQ_BASE_URL` is an optional env var defaulting to
-  `https://api.groq.com/openai/v1`. Tests set it to a local mock so
-  the function can be exercised without a real key or network call.
+  `https://api.groq.com/openai/v1`, read only by `index.ts`'s real
+  `callGroq`. It exists so a future local mock is possible; the
+  automated tests mock `callGroq` at the `deps` boundary instead and
+  never hit it.
 
 ### Shared computation
 
@@ -208,6 +219,31 @@ small pure formulas are reimplemented in a local
 tests. If these ever diverge from `src/lib/shotView.ts` the analyses
 drift from the UI, so both copies carry a comment pointing at the
 other.
+
+### Testability structure
+
+The handler is split so its logic is unit-testable without Deno,
+Docker, or a network:
+
+- `shot-math.ts`, `prompt.ts` - pure, no imports. `buildPrompt(shot,
+  priorShots, { mixedBeans })` returns the `{ system, user }` message
+  pair.
+- `orchestrator.ts` - `runAnalysis(deps, { shotId })` where `deps` is
+  `{ getShot, getPriorShots, callGroq, saveAnalysis, model }`. This
+  holds all the branching: `404` when `getShot` returns null, `422` on
+  the numeric guard, the same-bag vs `mixedBeans` history choice, the
+  Groq response validation, the mapping of a thrown Groq error to
+  `429`/`502`, and the final `saveAnalysis` call. It returns
+  `{ status, body }`. No Deno or Supabase types cross into this file.
+- `index.ts` - `Deno.serve` wiring only: CORS, body parse, construct
+  the real `deps` (a supabase-js client carrying the caller's
+  `Authorization` header; a `callGroq` that does the real `fetch` with
+  a timeout against `GROQ_BASE_URL`), call `runAnalysis`, serialize
+  the result.
+
+`orchestrator.ts` and the pure files are covered by vitest with mocked
+`deps`. `index.ts` (the thin wiring) plus the real Groq call are
+covered by the manual end-to-end checklist.
 
 ---
 
@@ -373,6 +409,15 @@ is a ghost button; there is no destructive action in this section.
 - `src/lib/analyses.ts`: `analyzeShot` error mapping - mock
   `supabase.functions.invoke` returning each of `422` / `429` / `502`
   and assert the thrown `AnalyzeError.status`.
+- `supabase/functions/analyze-shot/orchestrator.test.ts`: `runAnalysis`
+  with fully mocked `deps` - `404` when `getShot` returns null; `422`
+  when `yield_g` is 0; same-bag history passed through to `buildPrompt`
+  vs `mixedBeans` path when the shot has no bean; a `getPriorShots`
+  returning 8 rows produces `history_count: 8`; a `callGroq` that
+  throws a 429-tagged error maps to status `429`, any other throw to
+  `502`; a Groq result missing `adjustment` maps to `502`; the happy
+  path calls `saveAnalysis` with the right row and returns `200` with
+  it.
 - `src/components/ShotAssistant.tsx` (React Testing Library, mocked
   `analyses` lib): renders the Analyze button with no analysis; renders
   both blocks and the metadata line with an analysis; shows the running
@@ -383,23 +428,28 @@ is a ghost button; there is no destructive action in this section.
 ### Integration (against local Supabase, like `tests/integration/rls.test.ts`)
 
 - `shot_analyses` RLS: user B cannot select, update, or delete user
-  A's analysis row; a direct insert with a mismatched `user_id` is
-  rejected.
-- The edge function is exercised with Groq stubbed (a
-  `GROQ_BASE_URL` env override pointing at a local mock, or an
-  injected fetch): valid shot -> row persisted and returned;
-  re-analyze -> same `shot_id`, row overwritten, `updated_at` moves;
-  another user's `shot_id` -> `404`; a shot with `yield_g = 0` ->
-  `422`.
+  A's analysis row; a direct insert by user B carrying user A's
+  `shot_id` is rejected by the shot-ownership check in the `insert`
+  policy.
+
+The edge function itself is not exercised in the automated suite - its
+only untested surface after the unit tests above is the `Deno.serve`
+wiring in `index.ts` and the real Groq `fetch`, both covered by the
+manual checklist. Standing up a Groq mock reachable from inside the
+Supabase functions Docker container is deliberately out of scope.
 
 ### Manual, end to end (needs the real Groq key)
 
-Documented as a short checklist in the implementation plan: set the
-real key locally, run `supabase functions serve`, analyze a shot with
-a few prior shots on its bag, confirm the diagnosis leads with the
-limitation when only 1-2 priors exist, confirm re-analyze overwrites,
-confirm the analysis reloads on a fresh page load, confirm a shot with
-no bean still analyzes with the "may be different beans" framing.
+Run through this checklist once the key exists (also recorded in the
+plan's final task): set the real key in `supabase/functions/.env`, run
+`npx supabase start` and `npx supabase functions serve analyze-shot`,
+then from the running app: analyze a shot with several prior shots on
+its bag; analyze a shot with only 1-2 priors and confirm the diagnosis
+opens with the limited-signal caveat; re-analyze and confirm the row is
+overwritten in place; reload the page and confirm the analysis comes
+back; analyze a shot with no bean name and confirm it still returns
+with the "may be different beans" framing; confirm another user's shot
+id returns a not-found error, not someone else's data.
 
 ---
 
@@ -428,11 +478,14 @@ supabase/
   functions/
     .env.example                             new: GROQ_API_KEY, GROQ_MODEL
     analyze-shot/
-      index.ts                               new: handler
-      prompt.ts                              new: buildPrompt
-      prompt.test.ts                         new
-      shot-math.ts                           new: ratio, daysSinceRoast (Deno copy)
-      shot-math.test.ts                      new
+      index.ts                               new: Deno.serve wiring + real deps
+      orchestrator.ts                         new: runAnalysis(deps, input)
+      orchestrator.test.ts                    new
+      prompt.ts                               new: buildPrompt
+      prompt.test.ts                          new
+      shot-math.ts                            new: ratio, daysSinceRoast (Deno copy)
+      shot-math.test.ts                       new
+      types.ts                                new: ShotRow, GroqResult, Deps, Result
 src/
   lib/
     analyses.ts                              new
@@ -445,11 +498,13 @@ src/
     ShotDetailPage.test.tsx                  modified
 tests/
   integration/
-    shot-analyses.test.ts                    new: RLS + function behavior (Groq stubbed)
+    shot-analyses.test.ts                    new: shot_analyses RLS isolation
 docs/
   barista-assistant-design.md                this file
 ```
 
-No new npm dependencies. The function uses the Deno-native `fetch` and
-the `@supabase/supabase-js` import already used elsewhere (via the
-Supabase functions import map).
+No new npm dependencies. `index.ts` imports `@supabase/supabase-js`
+from `esm.sh` (the standard Supabase Edge Functions pattern) and uses
+the Deno-native `fetch`; none of that is exercised by vitest, which
+only imports the pure `orchestrator.ts` / `prompt.ts` / `shot-math.ts`
+files.
