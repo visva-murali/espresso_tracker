@@ -22,6 +22,12 @@ function now reads `target_ratio` and the prompt judges the shot
 against it. See the "Prompt revisions" note in
 `docs/barista-assistant-design.md`.
 
+A sibling per-bag target, a pull-time window, was added 2026-09-10:
+`docs/target-pull-time-design.md`. It reuses this design's `bag_targets`
+row and `bagState` options pattern. `targetForBag` was left returning
+`number | null`; a parallel `pullTimeRangeForBag` was added rather than
+changing its return type.
+
 ## Decisions locked before this design
 
 Settled in the 2026-09-09 brainstorming conversation:
