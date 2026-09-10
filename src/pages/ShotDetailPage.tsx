@@ -9,11 +9,13 @@ import {
   uploadShotVideo,
   type Video,
 } from '../lib/videos';
+import { getAnalysisForShot, type ShotAnalysis } from '../lib/analyses';
 import { groupShotsByBag, deltas, ratio, daysSinceRoast, sameBag } from '../lib/shotView';
 import { formatMass, formatSigned, formatRoastAge } from '../lib/format';
 import { RatioFigure } from '../components/shot-display/RatioFigure';
 import { PullTimeFigure } from '../components/shot-display/PullTimeFigure';
 import { StickyActionBar } from '../components/StickyActionBar';
+import { ShotAssistant } from '../components/ShotAssistant';
 
 type VideoState = 'none' | 'uploading' | 'ready' | 'unplayable';
 
@@ -34,6 +36,8 @@ export function ShotDetailPage() {
   const [videoState, setVideoState] = useState<VideoState>('none');
   const [error, setError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [analysis, setAnalysis] = useState<ShotAnalysis | null>(null);
+  const [analysisReady, setAnalysisReady] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -56,6 +60,14 @@ export function ShotDetailPage() {
         getVideoPlaybackUrl(v).then(setVideoUrl);
       })
       .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load video'));
+  }, [id]);
+
+  useEffect(() => {
+    if (!id) return;
+    getAnalysisForShot(id)
+      .then(setAnalysis)
+      .catch(() => setAnalysis(null))
+      .finally(() => setAnalysisReady(true));
   }, [id]);
 
   async function handleVideoAttach(e: ChangeEvent<HTMLInputElement>) {
@@ -294,6 +306,8 @@ export function ShotDetailPage() {
           </div>
         </div>
       )}
+
+      {analysisReady && <ShotAssistant shotId={shot.id} initialAnalysis={analysis} />}
 
       {shot.tasting_note && (
         <div
