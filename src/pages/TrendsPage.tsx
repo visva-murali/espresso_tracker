@@ -71,10 +71,9 @@ function RatioOverTimeChart({
           />
           <text
             className="num"
-            x="328"
-            y={y(targetRatio) - 4}
-            textAnchor="end"
-            style={TICK_STYLE}
+            x="4"
+            y={y(targetRatio) + 3}
+            style={{ ...TICK_STYLE, fill: 'var(--color-accent)' }}
           >
             1:{targetRatio.toFixed(1)}
           </text>

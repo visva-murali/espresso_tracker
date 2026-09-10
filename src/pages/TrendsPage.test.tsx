@@ -348,6 +348,50 @@ describe('TrendsPage', () => {
     expect(container.querySelector('line[stroke-dasharray]')).toBeTruthy();
   });
 
+  it('anchors the target ratio label to the y-axis at the goal line height', async () => {
+    const bagShots = [
+      { ...shots[0], id: 's2', dose_g: 18, yield_g: 37, pull_time_s: 30 },
+      { ...shots[0], id: 's1', dose_g: 18, yield_g: 36, pull_time_s: 28 },
+    ];
+    vi.mocked(listShots).mockResolvedValue(bagShots);
+    vi.mocked(listBagTargets).mockResolvedValue([
+      {
+        id: 't1',
+        user_id: 'user-1',
+        bean_name: shots[0].bean_name,
+        roast_date: shots[0].roast_date,
+        target_ratio: 2.0,
+        target_pull_time_low_s: null,
+        target_pull_time_high_s: null,
+        created_at: '2026-09-04T00:00:00Z',
+        updated_at: '2026-09-04T00:00:00Z',
+      },
+    ]);
+
+    render(
+      <MemoryRouter>
+        <TrendsPage />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => expect(screen.getByText('Ratio against time')).toBeInTheDocument());
+    await waitFor(() => {
+      const svg = screen.getByText('Ratio against time').parentElement!.querySelector('svg')!;
+      expect(svg.querySelector('line[stroke-dasharray]')).toBeTruthy();
+    });
+
+    const scatter = screen.getByText('Ratio against time').parentElement!.querySelector('svg')!;
+    const dash = scatter.querySelector('line[stroke-dasharray]')!;
+    const label = [...scatter.querySelectorAll('text')].find((t) => /^1:/.test(t.textContent ?? ''))!;
+    // Label sits in the left gutter (with the axis ticks), not out on the line
+    // where the last shot dot overlaps it.
+    expect(Number(label.getAttribute('x'))).toBeLessThanOrEqual(40);
+    // ...and level with the dashed line.
+    expect(
+      Math.abs(Number(label.getAttribute('y')) - Number(dash.getAttribute('y1')))
+    ).toBeLessThanOrEqual(6);
+  });
+
   it('draws no goal line when the bag has no target', async () => {
     const bagShots = [
       { ...shots[0], id: 's2', dose_g: 18, yield_g: 40, pull_time_s: 30 },
