@@ -78,6 +78,19 @@ describe('ShotDetailPage', () => {
     vi.mocked(listBagTargets).mockResolvedValue([]);
   });
 
+  it('keeps the back-to-shots link on screen while the shot is still loading', async () => {
+    vi.mocked(getShot).mockReturnValue(new Promise(() => {}));
+    vi.mocked(listShots).mockResolvedValue([]);
+    vi.mocked(getVideoForShot).mockResolvedValue(null);
+
+    renderAtShot('shot-1');
+
+    await waitFor(() => {
+      expect(screen.getByRole('link', { name: 'Shots' })).toBeInTheDocument();
+      expect(screen.getByRole('status', { name: /loading/i })).toBeInTheDocument();
+    });
+  });
+
   it('renders the hero ratio, pull time, and delta block against the previous shot on the bag', async () => {
     vi.mocked(getShot).mockResolvedValue(shot);
     vi.mocked(listShots).mockResolvedValue([shot, previousShot]);

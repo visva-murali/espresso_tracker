@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { ShotForm, type ShotFormValues } from '../components/ShotForm';
 import { getShot, updateShot, type Shot } from '../lib/shots';
 import { toFormValues, targetForBag } from '../lib/shotView';
 import { listBagTargets, setBagTarget, type BagTarget } from '../lib/bagTargets';
+import { LoadingBar } from '../components/LoadingBar';
 
 export function EditShotPage() {
   const { id } = useParams<{ id: string }>();
@@ -52,13 +53,7 @@ export function EditShotPage() {
     navigate(`/shots/${id}`);
   }
 
-  if (error) return <p style={{ color: 'var(--color-accent-800)' }}>{error}</p>;
-  if (shot === undefined || !bagTargetsLoaded) return <p>Loading...</p>;
-  if (shot === null) return <p>Shot not found.</p>;
-
-  const values = toFormValues(shot);
-
-  return (
+  const shell = (body: ReactNode) => (
     <div className="max-w-md mx-auto flex flex-col min-h-[100dvh]">
       <div className="flex items-center border-b border-[var(--color-divider)]" style={{ padding: 'var(--space-3) var(--space-4)' }}>
         <Link
@@ -75,6 +70,21 @@ export function EditShotPage() {
       >
         Edit shot
       </h1>
+      {body}
+    </div>
+  );
+
+  if (error)
+    return shell(
+      <p style={{ color: 'var(--color-accent-800)', padding: '0 var(--space-4)' }}>{error}</p>
+    );
+  if (shot === undefined || !bagTargetsLoaded) return shell(<LoadingBar />);
+  if (shot === null) return shell(<p style={{ padding: '0 var(--space-4)' }}>Shot not found.</p>);
+
+  const values = toFormValues(shot);
+
+  return shell(
+    <>
       <ShotForm
         key={id}
         referenceValues={values}
@@ -84,6 +94,6 @@ export function EditShotPage() {
         target={target}
         onTargetChange={setTarget}
       />
-    </div>
+    </>
   );
 }

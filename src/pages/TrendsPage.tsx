@@ -6,6 +6,7 @@ import { groupShotsByBag, ratio, sameBag, bagLabel, targetForBag, type Bag } fro
 import { listBagTargets, type BagTarget } from '../lib/bagTargets';
 import { scaleLinear, medianOf, niceDomain } from '../lib/chartScale';
 import { BagSelector } from '../components/BagSelector';
+import { LoadingBar } from '../components/LoadingBar';
 
 // Below this many shots on a bag, a "trend" is mostly noise: the pull-time
 // chart drops its connecting line and the page shows an "early days" note.
@@ -222,13 +223,16 @@ export function TrendsPage() {
   const [bags, setBags] = useState<Bag[]>([]);
   const [selectedBag, setSelectedBag] = useState<Bag | null>(null);
   const [bagTargets, setBagTargets] = useState<BagTarget[]>([]);
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    listShots().then((shots) => {
-      const grouped = groupShotsByBag(shots);
-      setBags(grouped);
-      setSelectedBag(grouped[0] ?? null);
-    });
+    listShots()
+      .then((shots) => {
+        const grouped = groupShotsByBag(shots);
+        setBags(grouped);
+        setSelectedBag(grouped[0] ?? null);
+      })
+      .finally(() => setLoaded(true));
     listBagTargets()
       .then(setBagTargets)
       .catch(() => setBagTargets([]));
@@ -265,7 +269,9 @@ export function TrendsPage() {
         )}
       </header>
 
-      {!selectedBag || selectedBag.shots.length === 0 ? (
+      {!loaded ? (
+        <LoadingBar />
+      ) : !selectedBag || selectedBag.shots.length === 0 ? (
         <p style={{ padding: 'var(--space-4)' }}>No shots logged yet.</p>
       ) : (
         <BagTrends bag={selectedBag} targetRatio={targetForBag(bagTargets, selectedBag)} />

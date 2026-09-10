@@ -45,6 +45,21 @@ describe('TrendsPage', () => {
     vi.mocked(listBagTargets).mockResolvedValue([]);
   });
 
+  it('shows a loading indicator, not the empty state, while shots are still loading', async () => {
+    vi.mocked(listShots).mockReturnValue(new Promise(() => {}));
+
+    render(
+      <MemoryRouter>
+        <TrendsPage />
+      </MemoryRouter>
+    );
+
+    await waitFor(() =>
+      expect(screen.getByRole('status', { name: /loading/i })).toBeInTheDocument()
+    );
+    expect(screen.queryByText(/no shots logged yet/i)).not.toBeInTheDocument();
+  });
+
   it('renders the three charts for the default (most recently active) bag', async () => {
     vi.mocked(listShots).mockResolvedValue(shots);
 
