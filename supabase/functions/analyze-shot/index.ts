@@ -136,6 +136,21 @@ Deno.serve(async (req: Request) => {
           if (error) throw new Error(error.message);
           return (data as ShotRow[] | null) ?? [];
         },
+        getBagTarget: async (shot) => {
+          let query = supabase.from('bag_targets').select('target_ratio');
+          query =
+            shot.bean_name == null
+              ? query.is('bean_name', null)
+              : query.eq('bean_name', shot.bean_name);
+          query =
+            shot.roast_date == null
+              ? query.is('roast_date', null)
+              : query.eq('roast_date', shot.roast_date);
+          const { data, error } = await query.maybeSingle();
+          if (error) throw new Error(error.message);
+          const raw = (data as { target_ratio: number | string } | null)?.target_ratio;
+          return raw == null ? null : Number(raw);
+        },
         callGroq,
         saveAnalysis: async (row) => {
           const { data, error } = await supabase

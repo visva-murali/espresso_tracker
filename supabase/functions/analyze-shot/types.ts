@@ -34,6 +34,7 @@ export type Deps = {
   model: string;
   getShot: (shotId: string) => Promise<ShotRow | null>;
   getPriorShots: (shot: ShotRow, opts: { mixedBeans: boolean }) => Promise<ShotRow[]>;
+  getBagTarget: (shot: ShotRow) => Promise<number | null>;
   callGroq: (messages: GroqMessages) => Promise<GroqResult>;
   saveAnalysis: (row: AnalysisRow) => Promise<Record<string, unknown>>;
 };
