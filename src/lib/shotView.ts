@@ -58,6 +58,8 @@ export function groupShotsByBag(shots: Shot[]): Bag[] {
   return order.map((key) => bags.get(key)!);
 }
 
+// Mirrored in supabase/functions/analyze-shot/shot-math.ts (the Edge
+// Function cannot import from src/). Keep both copies in sync.
 export function daysSinceRoast(roastDate: string, now: Date = new Date()): number {
   const roast = new Date(roastDate);
   return Math.floor((now.getTime() - roast.getTime()) / MS_PER_DAY);
@@ -115,6 +117,7 @@ export function deltas(shot: Shot, previous: Shot): ShotDeltas {
   };
 }
 
+// Mirrored in supabase/functions/analyze-shot/shot-math.ts. Keep in sync.
 export function ratio(shot: Pick<Shot, 'dose_g' | 'yield_g'>): number {
   return shot.yield_g / shot.dose_g;
 }
