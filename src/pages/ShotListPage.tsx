@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { listShots, type Shot } from '../lib/shots';
-import { groupShotsByBag, bagState, ratio, daysSinceRoast, deltas, bagKey, type Bag } from '../lib/shotView';
+import { groupShotsByBag, bagState, bagLabel, ratio, daysSinceRoast, deltas, bagKey, type Bag } from '../lib/shotView';
 import { formatMass, formatSigned, formatRoastAge } from '../lib/format';
 import { useAuth } from '../context/AuthContext';
 import { SearchIcon, MenuIcon, VideoIcon } from '../components/icons';
@@ -15,9 +15,6 @@ import { BagTag } from '../components/shot-display/BagTag';
 
 type Filter = 'active' | 'all';
 
-function bagTitle(bag: Bag): string {
-  return bag.bean_name ?? 'Unlabeled';
-}
 
 function formatTimestamp(iso: string): string {
   const date = new Date(iso);
@@ -88,7 +85,7 @@ function BagGroup({ bag }: { bag: Bag }) {
           <div
             style={{ fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: '19px' }}
           >
-            {bagTitle(bag)}
+            {bagLabel(bag)}
           </div>
           <div
             className="num"

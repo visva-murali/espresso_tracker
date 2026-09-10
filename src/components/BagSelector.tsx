@@ -1,6 +1,6 @@
 // src/components/BagSelector.tsx
 import { useState } from 'react';
-import { bagKey, sameBag } from '../lib/shotView';
+import { bagKey, sameBag, bagLabel } from '../lib/shotView';
 
 export type BagIdentity = {
   bean_name: string | null;
@@ -44,7 +44,7 @@ export function BagSelector({ bags, selected, onSelect, label }: Props) {
                 }}
                 className="block w-full text-left px-3 py-2 text-sm hover:bg-[var(--color-accent-100)] active:bg-[var(--color-accent-200)]"
               >
-                {bag.bean_name ?? 'Unlabeled'}
+                {bagLabel(bag)}
               </button>
             </li>
           ))}
