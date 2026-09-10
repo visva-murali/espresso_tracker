@@ -79,7 +79,7 @@ describe('groupShotsByBag', () => {
 describe('bagState', () => {
   it('returns null for a bag with exactly one shot, even if very fresh', () => {
     const shots = [makeShot({ roast_date: '2026-09-03' })];
-    expect(bagState(shots, new Date('2026-09-04'))).toBeNull();
+    expect(bagState(shots, { now: new Date('2026-09-04') })).toBeNull();
   });
 
   it('returns past-peak when over 28 days off roast, regardless of convergence', () => {
@@ -87,7 +87,7 @@ describe('bagState', () => {
       makeShot({ id: 'a', roast_date: '2026-07-01', pull_time_s: 28, dose_g: 18, yield_g: 36 }),
       makeShot({ id: 'b', roast_date: '2026-07-01', pull_time_s: 28, dose_g: 18, yield_g: 36 }),
     ];
-    expect(bagState(shots, new Date('2026-09-04'))).toBe('past-peak');
+    expect(bagState(shots, { now: new Date('2026-09-04') })).toBe('past-peak');
   });
 
   it('returns resting when under 4 days off roast', () => {
@@ -95,7 +95,7 @@ describe('bagState', () => {
       makeShot({ id: 'a', roast_date: '2026-09-02' }),
       makeShot({ id: 'b', roast_date: '2026-09-02' }),
     ];
-    expect(bagState(shots, new Date('2026-09-04'))).toBe('resting');
+    expect(bagState(shots, { now: new Date('2026-09-04') })).toBe('resting');
   });
 
   it('returns dialed when the last two shots converge within tolerance', () => {
@@ -103,7 +103,7 @@ describe('bagState', () => {
       makeShot({ id: 'a', roast_date: '2026-08-20', dose_g: 18, yield_g: 36, pull_time_s: 28 }),
       makeShot({ id: 'b', roast_date: '2026-08-20', dose_g: 18, yield_g: 37, pull_time_s: 29 }),
     ];
-    expect(bagState(shots, new Date('2026-09-04'))).toBe('dialed');
+    expect(bagState(shots, { now: new Date('2026-09-04') })).toBe('dialed');
   });
 
   it('returns dialing when the last two shots have not converged', () => {
@@ -111,7 +111,39 @@ describe('bagState', () => {
       makeShot({ id: 'a', roast_date: '2026-08-20', dose_g: 18, yield_g: 36, pull_time_s: 28 }),
       makeShot({ id: 'b', roast_date: '2026-08-20', dose_g: 18, yield_g: 30, pull_time_s: 20 }),
     ];
-    expect(bagState(shots, new Date('2026-09-04'))).toBe('dialing');
+    expect(bagState(shots, { now: new Date('2026-09-04') })).toBe('dialing');
+  });
+
+  it('is dialed when both recent shots sit within tolerance of the target', () => {
+    const shots = [
+      makeShot({ id: 'a', roast_date: '2026-08-10', dose_g: 18, yield_g: 36.9, pull_time_s: 29 }), // 1:2.05
+      makeShot({ id: 'b', roast_date: '2026-08-10', dose_g: 18, yield_g: 35.5, pull_time_s: 28 }), // 1:1.97
+    ];
+    expect(bagState(shots, { targetRatio: 2, now: new Date('2026-09-04') })).toBe('dialed');
+  });
+
+  it('is dialing when a recent shot is outside the target band, even if the two shots agree', () => {
+    const shots = [
+      makeShot({ id: 'a', roast_date: '2026-08-10', dose_g: 18, yield_g: 45, pull_time_s: 30 }), // 1:2.5
+      makeShot({ id: 'b', roast_date: '2026-08-10', dose_g: 18, yield_g: 45.5, pull_time_s: 31 }), // 1:2.53
+    ];
+    expect(bagState(shots, { targetRatio: 2, now: new Date('2026-09-04') })).toBe('dialing');
+  });
+
+  it('is dialing when on target but pull times are more than 2s apart', () => {
+    const shots = [
+      makeShot({ id: 'a', roast_date: '2026-08-10', dose_g: 18, yield_g: 36, pull_time_s: 34 }),
+      makeShot({ id: 'b', roast_date: '2026-08-10', dose_g: 18, yield_g: 36, pull_time_s: 28 }),
+    ];
+    expect(bagState(shots, { targetRatio: 2, now: new Date('2026-09-04') })).toBe('dialing');
+  });
+
+  it('still returns resting before applying the target branch', () => {
+    const shots = [
+      makeShot({ id: 'a', roast_date: '2026-09-02', dose_g: 18, yield_g: 45 }),
+      makeShot({ id: 'b', roast_date: '2026-09-02', dose_g: 18, yield_g: 45 }),
+    ];
+    expect(bagState(shots, { targetRatio: 2, now: new Date('2026-09-04') })).toBe('resting');
   });
 });
 
