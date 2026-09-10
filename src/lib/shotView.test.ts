@@ -3,6 +3,7 @@ import { describe, it, expect } from 'vitest';
 import {
   groupShotsByBag,
   bagState,
+  bagLabel,
   referenceShot,
   deltas,
   ratio,
@@ -119,6 +120,16 @@ describe('referenceShot', () => {
 
   it('returns null for an empty bag', () => {
     expect(referenceShot([])).toBeNull();
+  });
+});
+
+describe('bagLabel', () => {
+  it('uses the bean name when there is one', () => {
+    expect(bagLabel({ bean_name: 'Kenya Nyeri AA' })).toBe('Kenya Nyeri AA');
+  });
+
+  it('falls back to "Unlabeled" when there is no bean name', () => {
+    expect(bagLabel({ bean_name: null })).toBe('Unlabeled');
   });
 });
 

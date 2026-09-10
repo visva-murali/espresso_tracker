@@ -130,6 +130,70 @@ describe('TrendsPage', () => {
     await waitFor(() => expect(screen.getByText(/median of 26s/i)).toBeInTheDocument());
   });
 
+  it('below 4 shots: pull-time chart shows dots not a connecting line, plus an early caption', async () => {
+    const three = [28, 24, 26].map((t, i) => ({ ...shots[0], id: `e${i}`, pull_time_s: t }));
+    vi.mocked(listShots).mockResolvedValue(three);
+
+    render(
+      <MemoryRouter>
+        <TrendsPage />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => expect(screen.getByText('Pull time consistency')).toBeInTheDocument());
+
+    const pullTimeSvg = screen.getByText('Pull time consistency').parentElement!.querySelector('svg')!;
+    expect(pullTimeSvg.querySelector('polyline')).toBeNull();
+    expect(pullTimeSvg.querySelectorAll('circle').length).toBe(3);
+    expect(screen.getByText(/shots on this bag so far/i)).toBeInTheDocument();
+  });
+
+  it('4 or more shots: pull-time chart draws the connecting line and no early caption', async () => {
+    const four = [28, 24, 26, 27].map((t, i) => ({ ...shots[0], id: `f${i}`, pull_time_s: t }));
+    vi.mocked(listShots).mockResolvedValue(four);
+
+    render(
+      <MemoryRouter>
+        <TrendsPage />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => expect(screen.getByText('Pull time consistency')).toBeInTheDocument());
+
+    const pullTimeSvg = screen.getByText('Pull time consistency').parentElement!.querySelector('svg')!;
+    expect(pullTimeSvg.querySelector('polyline')).not.toBeNull();
+    expect(screen.queryByText(/shots on this bag so far/i)).not.toBeInTheDocument();
+  });
+
+  it('hides the bag selector when there is only one bag', async () => {
+    vi.mocked(listShots).mockResolvedValue(shots); // both shots are one bag
+
+    render(
+      <MemoryRouter>
+        <TrendsPage />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => expect(screen.getByText('Ratio against time')).toBeInTheDocument());
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+  });
+
+  it('shows the bag selector labelled by bean name when there are multiple bags', async () => {
+    vi.mocked(listShots).mockResolvedValue([
+      { ...shots[0], id: 'k', bean_name: 'Kenya Nyeri AA' },
+      { ...shots[1], id: 'c', bean_name: 'Colombia Huila', roast_date: '2026-08-10' },
+    ]);
+
+    render(
+      <MemoryRouter>
+        <TrendsPage />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => expect(screen.getByText('Ratio against time')).toBeInTheDocument());
+    expect(screen.getByRole('button', { name: 'Kenya Nyeri AA' })).toBeInTheDocument();
+  });
+
   it('shows an empty state when the selected bag has no shots yet', async () => {
     vi.mocked(listShots).mockResolvedValue([]);
 

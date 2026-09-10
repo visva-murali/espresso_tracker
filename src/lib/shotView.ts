@@ -27,6 +27,12 @@ export function bagKey(bag: { bean_name: string | null; roast_date: string | nul
   return `${bag.bean_name ?? ''}|${bag.roast_date ?? ''}`;
 }
 
+/** Display name for a bag. v1 bags have no name of their own, so this is the
+ * bean name when the user gave one, and a plain "Unlabeled" otherwise. */
+export function bagLabel(bag: { bean_name: string | null }): string {
+  return bag.bean_name ?? 'Unlabeled';
+}
+
 export function sameBag(
   a: { bean_name: string | null; roast_date: string | null },
   b: { bean_name: string | null; roast_date: string | null }
