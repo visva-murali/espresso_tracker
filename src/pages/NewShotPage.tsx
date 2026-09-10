@@ -3,7 +3,8 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ShotForm, emptyShotFormValues, type ShotFormValues } from '../components/ShotForm';
 import { BagSelector } from '../components/BagSelector';
 import { createShot, listShots, type Shot } from '../lib/shots';
-import { groupShotsByBag, referenceShot as pickReferenceShot, sameBag, bagKey, toFormValues, type Bag } from '../lib/shotView';
+import { groupShotsByBag, referenceShot as pickReferenceShot, sameBag, bagKey, toFormValues, targetForBag, type Bag } from '../lib/shotView';
+import { listBagTargets, setBagTarget, type BagTarget } from '../lib/bagTargets';
 import { validateVideoFile, uploadShotVideo } from '../lib/videos';
 
 /**
@@ -71,6 +72,16 @@ export function NewShotPage() {
   const [videoError, setVideoError] = useState<string | null>(null);
   const [createdShotId, setCreatedShotId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [bagTargets, setBagTargets] = useState<BagTarget[]>([]);
+  const [bagTargetsLoaded, setBagTargetsLoaded] = useState(false);
+  const [target, setTarget] = useState<number | null>(null);
+
+  useEffect(() => {
+    listBagTargets()
+      .then(setBagTargets)
+      .catch(() => setBagTargets([]))
+      .finally(() => setBagTargetsLoaded(true));
+  }, []);
 
   useEffect(() => {
     listShots()
@@ -110,6 +121,7 @@ export function NewShotPage() {
 
   async function handleSubmit(values: ShotFormValues) {
     let shotId = createdShotId;
+    const bagRef = { bean_name: values.bean_name || null, roast_date: values.roast_date || null };
     if (!shotId) {
       const shot = await createShot({
         grind_setting: values.grind_setting,
@@ -124,11 +136,42 @@ export function NewShotPage() {
       shotId = shot.id;
       setCreatedShotId(shotId);
     }
+    if (target !== targetForBag(bagTargets, bagRef)) {
+      await setBagTarget(bagRef, target);
+    }
     if (videoFile) {
       await uploadShotVideo(shotId, videoFile);
     }
     navigate(`/shots/${shotId}`);
   }
+
+  // The bag whose target the control edits: the confirmed new bag's typed
+  // bean/roast, or the selected existing bag. An identical bean_name +
+  // roast_date is the same bag everywhere else (groupShotsByBag), so
+  // resolving its stored target here is correct, not an auto-default.
+  const targetBeanName = newBagConfirmed
+    ? newBeanName || null
+    : selectedBag
+    ? selectedBag.bean_name
+    : null;
+  const targetRoastDate = newBagConfirmed
+    ? newRoastDate || null
+    : selectedBag
+    ? selectedBag.roast_date
+    : null;
+  const hasBagForTarget = newBagConfirmed || selectedBag != null;
+
+  useEffect(() => {
+    if (!bagTargetsLoaded) return;
+    setTarget(
+      hasBagForTarget
+        ? targetForBag(bagTargets, { bean_name: targetBeanName, roast_date: targetRoastDate })
+        : null
+    );
+    // Keyed on the bag identity, not on bagTargets, so a late load never
+    // clobbers a value the user picked.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [targetBeanName, targetRoastDate, hasBagForTarget, bagTargetsLoaded]);
 
   const reference = seedShot ?? (selectedBag ? pickReferenceShot(selectedBag.shots) : null);
   const showNewBagFields = startingNewBag && !newBagConfirmed;
@@ -211,13 +254,15 @@ export function NewShotPage() {
         />
       )}
 
-      {formValues && !showNewBagFields && (
+      {formValues && !showNewBagFields && bagTargetsLoaded && (
         <ShotForm
           key={seedShot ? seedShot.id : selectedBag ? bagKey(selectedBag) : 'new-bag'}
           referenceValues={formValues}
           initialValues={formValues}
           submitLabel="Save shot"
           onSubmit={handleSubmit}
+          target={target}
+          onTargetChange={setTarget}
         >
           <div className="flex flex-col gap-1" style={{ padding: '0 var(--space-4) var(--space-4)' }}>
             <label htmlFor="video-input" className="text-sm" style={{ color: 'var(--color-accent)' }}>
