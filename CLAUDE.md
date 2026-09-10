@@ -37,6 +37,10 @@ trade-off discussion in `docs/mvp-design.md`.
   can attach data to `videos.id` without touching `shots`. Holds
   `storage_key`, `content_type`, `size_bytes`, `uploaded_at`, and a
   denormalized `user_id` for simpler RLS.
+- `shot_analyses`: one row per shot (unique `shot_id`, 1:1), holding
+  the barista assistant's `diagnosis`, `adjustment`, the `model` that
+  produced them, and `history_count`. Denormalized `user_id` for RLS,
+  mirroring `videos`. Written only by the `analyze-shot` Edge Function.
 - RLS on both tables restricts every operation to `user_id = auth.uid()`.
   Storage bucket policies mirror the same rule against the key prefix
   (`{user_id}/{shot_id}/{uuid}.{ext}`).
@@ -59,6 +63,16 @@ trade-off discussion in `docs/mvp-design.md`.
   constrain real pours.
 - Known limitation: some phone video formats (HEVC-in-.mov) may not play
   back in every browser.
+
+## Barista assistant
+
+On-demand shot troubleshooting on the shot detail page. The
+`analyze-shot` Supabase Edge Function reads the shot plus up to 8 prior
+same-bag shots through the caller's JWT (RLS enforces ownership), calls
+Groq (free tier, key held server-side in the function's env, never in
+the client), and upserts a `shot_analyses` row. Design and rationale:
+`docs/barista-assistant-design.md`. No CV dependency; this is Phase 2
+piece B from `docs/mvp_spec.md`.
 
 ## Definition of done for v1
 
