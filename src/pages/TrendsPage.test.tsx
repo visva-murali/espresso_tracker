@@ -1,11 +1,13 @@
 // src/pages/TrendsPage.test.tsx
 import { render, screen, waitFor } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import { TrendsPage } from './TrendsPage';
 import { listShots } from '../lib/shots';
+import { listBagTargets } from '../lib/bagTargets';
 
 vi.mock('../lib/shots', () => ({ listShots: vi.fn() }));
+vi.mock('../lib/bagTargets', () => ({ listBagTargets: vi.fn() }));
 
 const shots = [
   {
@@ -39,6 +41,10 @@ const shots = [
 ];
 
 describe('TrendsPage', () => {
+  beforeEach(() => {
+    vi.mocked(listBagTargets).mockResolvedValue([]);
+  });
+
   it('renders the three charts for the default (most recently active) bag', async () => {
     vi.mocked(listShots).mockResolvedValue(shots);
 
@@ -204,5 +210,53 @@ describe('TrendsPage', () => {
     );
 
     await waitFor(() => expect(screen.getByText(/no shots logged yet/i)).toBeInTheDocument());
+  });
+
+  it('draws the goal line and label when the selected bag has a target', async () => {
+    const bagShots = [
+      { ...shots[0], id: 's2', dose_g: 18, yield_g: 40, pull_time_s: 30 },
+      { ...shots[0], id: 's1', dose_g: 18, yield_g: 38, pull_time_s: 28 },
+    ];
+    vi.mocked(listShots).mockResolvedValue(bagShots);
+    vi.mocked(listBagTargets).mockResolvedValue([
+      {
+        id: 't1',
+        user_id: 'user-1',
+        bean_name: shots[0].bean_name,
+        roast_date: shots[0].roast_date,
+        target_ratio: 2.2,
+        created_at: '2026-09-04T00:00:00Z',
+        updated_at: '2026-09-04T00:00:00Z',
+      },
+    ]);
+
+    const { container } = render(
+      <MemoryRouter>
+        <TrendsPage />
+      </MemoryRouter>
+    );
+
+    // wait for the target-specific label, not just any <text>, so the assert
+    // does not race the bagTargets load
+    await waitFor(() => expect(container.textContent).toContain('1:2.2'));
+    expect(container.querySelector('line[stroke-dasharray]')).toBeTruthy();
+  });
+
+  it('draws no goal line when the bag has no target', async () => {
+    const bagShots = [
+      { ...shots[0], id: 's2', dose_g: 18, yield_g: 40, pull_time_s: 30 },
+      { ...shots[0], id: 's1', dose_g: 18, yield_g: 38, pull_time_s: 28 },
+    ];
+    vi.mocked(listShots).mockResolvedValue(bagShots);
+    vi.mocked(listBagTargets).mockResolvedValue([]);
+
+    const { container } = render(
+      <MemoryRouter>
+        <TrendsPage />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => expect(container.querySelector('svg')).toBeTruthy());
+    expect(container.querySelector('line[stroke-dasharray]')).toBeNull();
   });
 });
