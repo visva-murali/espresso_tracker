@@ -143,22 +143,18 @@ callers; both already pass a ratio).
 
 ## 3. `src/lib/shotView.ts`
 
-### `targetForBag` returns the row
+### `pullTimeRangeForBag` (new) - `targetForBag` unchanged
 
-Today it returns `number | null` (the ratio). It becomes:
-
-```ts
-export function targetForBag(targets: BagTarget[], bag: BagRef): BagTarget | null;
-```
-
-Callers (`ShotListPage`, `NewShotPage`, `EditShotPage`, `ShotDetailPage`,
-`TrendsPage`) read `target?.target_ratio` and the pull-time fields off
-the result. A small helper keeps the range extraction in one place:
+The implementation keeps `targetForBag(targets, bag): number | null`
+(the ratio) as it is - changing its return type would ripple to five
+page call sites for no functional gain - and adds a parallel helper:
 
 ```ts
-export function pullTimeRangeOf(target: BagTarget | null): [number, number] | null;
-// [low, high] when both set, else null
+export function pullTimeRangeForBag(targets: BagTarget[], bag: BagRef): [number, number] | null;
+// [low, high] for the matching bag when both columns are set, else null
 ```
+
+Pages that need the range call it alongside `targetForBag`.
 
 ### `ratioDelta` - unchanged.
 
@@ -253,8 +249,8 @@ Both already hold `target` state, seed it from `targetForBag`, gate the
 form render on `bagTargetsLoaded`, and persist on submit when changed.
 Add a parallel `pullTimeTarget: [number, number] | null` state:
 
-- **Seed:** from `pullTimeRangeOf(targetForBag(bagTargets, bag))`, in
-  the same effect that seeds `target`.
+- **Seed:** from `pullTimeRangeForBag(bagTargets, bag)`, in the same
+  effect that seeds `target`.
 - **Persist:** on submit, build the current
   `{ targetRatio, pullTime }` and the stored one; if they differ, call
   `setBagTarget(bagRef, { targetRatio, pullTime })`. One call writes
@@ -264,8 +260,9 @@ Add a parallel `pullTimeTarget: [number, number] | null` state:
 
 ### 4d. `ShotDetailPage.tsx` - the readout
 
-`const target = targetForBag(bagTargets, shot)` (now a `BagTarget | null`).
-The quiet 11px uppercase line below the figures, by case:
+`const target = targetForBag(bagTargets, shot)` (the ratio, unchanged)
+and `const pullRange = pullTimeRangeForBag(bagTargets, shot)`. The quiet
+11px uppercase line below the figures, by case:
 
 - ratio only: `target 1:2.0 · +0.06`  (unchanged)
 - range only: `target 26-31s · 30s in range`
@@ -294,8 +291,8 @@ No line when the bag has no target at all. Range bounds are inclusive
 
 When no range is set: unchanged.
 
-`BagTrends` resolves `pullTimeRangeOf(targetForBag(...))` for the
-selected bag and passes it down.
+`BagTrends` resolves `pullTimeRangeForBag(bagTargets, selectedBag)` and
+passes it down.
 
 ### 4f. `ShotListPage.tsx` - the tag
 
@@ -303,10 +300,9 @@ selected bag and passes it down.
 `bagState`:
 
 ```ts
-const t = targetForBag(bagTargets, bag);
 bagState(bag.shots, {
-  targetRatio: t?.target_ratio ?? null,
-  pullTimeRange: pullTimeRangeOf(t),
+  targetRatio: targetForBag(bagTargets, bag),
+  pullTimeRange: pullTimeRangeForBag(bagTargets, bag),
 });
 ```
 
@@ -372,8 +368,8 @@ Unit / component (Vitest, jsdom):
 - `bagTargets.test.ts` (integration, local Supabase): `setBagTarget`
   with the object writes ratio-only, range-only, both; clears the row
   when all null; the null-keyed bag still works.
-- `shotView.test.ts`: `targetForBag` returns the row / null;
-  `pullTimeRangeOf`; `pullTimeAgainstRange` under/in/over;
+- `shotView.test.ts`: `pullTimeRangeForBag` returns `[low, high]` / null;
+  `pullTimeAgainstRange` under/in/over;
   `bagState` matrix - range only, range + ratio, in-range vs one shot
   out; unchanged results when neither or only-ratio is set (existing
   cases migrate to the options object as they did for the ratio target).
@@ -419,7 +415,7 @@ src/
   lib/
     bagTargets.ts                             modified: types, setBagTarget object
     bagTargets.test.ts                        modified
-    shotView.ts                               modified: targetForBag row, pullTimeRangeOf,
+    shotView.ts                               modified: pullTimeRangeForBag,
                                               pullTimeAgainstRange, bagState range branch
     shotView.test.ts                          modified
   components/
