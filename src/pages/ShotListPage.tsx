@@ -2,7 +2,8 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { listShots, type Shot } from '../lib/shots';
-import { groupShotsByBag, bagState, bagLabel, ratio, daysSinceRoast, deltas, bagKey, type Bag } from '../lib/shotView';
+import { groupShotsByBag, bagState, bagLabel, ratio, daysSinceRoast, deltas, bagKey, targetForBag, type Bag } from '../lib/shotView';
+import { listBagTargets, type BagTarget } from '../lib/bagTargets';
 import { formatMass, formatSigned, formatRoastAge } from '../lib/format';
 import { useAuth } from '../context/AuthContext';
 import { SearchIcon, MenuIcon, VideoIcon } from '../components/icons';
@@ -71,8 +72,8 @@ function ShotRow({ shot, previous }: { shot: Shot; previous: Shot | null }) {
   );
 }
 
-function BagGroup({ bag }: { bag: Bag }) {
-  const state = bagState(bag.shots);
+function BagGroup({ bag, targets }: { bag: Bag; targets: BagTarget[] }) {
+  const state = bagState(bag.shots, { targetRatio: targetForBag(targets, bag) });
   const age = bag.roast_date ? daysSinceRoast(bag.roast_date) : null;
 
   return (
@@ -107,6 +108,7 @@ function BagGroup({ bag }: { bag: Bag }) {
 export function ShotListPage() {
   const { signOut } = useAuth();
   const [shots, setShots] = useState<Shot[] | null>(null);
+  const [bagTargets, setBagTargets] = useState<BagTarget[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<Filter>('active');
   const [menuOpen, setMenuOpen] = useState(false);
@@ -115,11 +117,18 @@ export function ShotListPage() {
     listShots()
       .then(setShots)
       .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load shots'));
+    listBagTargets()
+      .then(setBagTargets)
+      .catch(() => setBagTargets([]));
   }, []);
 
   const bags = shots ? groupShotsByBag(shots) : [];
   const visibleBags =
-    filter === 'active' ? bags.filter((bag) => bagState(bag.shots) !== 'past-peak') : bags;
+    filter === 'active'
+      ? bags.filter(
+          (bag) => bagState(bag.shots, { targetRatio: targetForBag(bagTargets, bag) }) !== 'past-peak'
+        )
+      : bags;
 
   return (
     <div className="max-w-md mx-auto flex flex-col min-h-[100dvh]">
@@ -204,7 +213,7 @@ export function ShotListPage() {
         <p style={{ padding: 'var(--space-4)' }}>No shots logged yet.</p>
       )}
       {visibleBags.map((bag) => (
-        <BagGroup key={bagKey(bag)} bag={bag} />
+        <BagGroup key={bagKey(bag)} bag={bag} targets={bagTargets} />
       ))}
 
       <StickyActionBar>

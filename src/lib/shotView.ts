@@ -1,5 +1,6 @@
 // src/lib/shotView.ts
 import type { Shot } from './shots';
+import type { BagTarget } from './bagTargets';
 import type { ShotFormValues } from '../components/ShotForm';
 
 export type Bag = {
@@ -74,10 +75,20 @@ export function daysSinceRoast(roastDate: string, now: Date = new Date()): numbe
 /**
  * See "Assumptions this plan makes where the schema is silent", item 3, in
  * the plan this function was implemented from: exactly one shot always
- * means no tag; roast-date bookends take precedence over dial-in
- * convergence when roast_date is known; convergence is the fallback.
+ * means no tag; roast-date bookends take precedence over any dial-in check
+ * when roast_date is known.
+ *
+ * When `options.targetRatio` is set (the bag has a bag_targets row),
+ * "dialed" means the last two shots each land within DIALED_RATIO_TOLERANCE
+ * of that target and within DIALED_TIME_TOLERANCE_S of each other on pull
+ * time. When it is not set, "dialed" falls back to shot-to-shot ratio
+ * convergence between the last two shots.
  */
-export function bagState(bagShots: Shot[], now: Date = new Date()): BagStateValue {
+export function bagState(
+  bagShots: Shot[],
+  options: { targetRatio?: number | null; now?: Date } = {}
+): BagStateValue {
+  const { targetRatio = null, now = new Date() } = options;
   if (bagShots.length <= 1) return null;
 
   const [latest, previous] = bagShots;
@@ -88,11 +99,16 @@ export function bagState(bagShots: Shot[], now: Date = new Date()): BagStateValu
     if (age < RESTING_MAX_DAYS) return 'resting';
   }
 
-  const ratioDiff = Math.abs(ratio(latest) - ratio(previous));
-  const timeDiff = Math.abs(latest.pull_time_s - previous.pull_time_s);
-  return ratioDiff <= DIALED_RATIO_TOLERANCE && timeDiff <= DIALED_TIME_TOLERANCE_S
-    ? 'dialed'
-    : 'dialing';
+  const timeStable =
+    Math.abs(latest.pull_time_s - previous.pull_time_s) <= DIALED_TIME_TOLERANCE_S;
+
+  if (targetRatio != null) {
+    const onTarget = (s: Shot) => Math.abs(ratio(s) - targetRatio) <= DIALED_RATIO_TOLERANCE;
+    return onTarget(latest) && onTarget(previous) && timeStable ? 'dialed' : 'dialing';
+  }
+
+  const ratioStable = Math.abs(ratio(latest) - ratio(previous)) <= DIALED_RATIO_TOLERANCE;
+  return ratioStable && timeStable ? 'dialed' : 'dialing';
 }
 
 /** The most recent shot on the bag. v1 has no is_reference flag to star a different one. */
@@ -126,6 +142,28 @@ export function deltas(shot: Shot, previous: Shot): ShotDeltas {
 // Mirrored in supabase/functions/analyze-shot/shot-math.ts. Keep in sync.
 export function ratio(shot: Pick<Shot, 'dose_g' | 'yield_g'>): number {
   return shot.yield_g / shot.dose_g;
+}
+
+/** The target ratio the user set for this bag, or null when the bag has no
+ * bag_targets row. Keyed by bean_name + roast_date, the same pairing
+ * groupShotsByBag uses. */
+export function targetForBag(
+  targets: BagTarget[],
+  bag: { bean_name: string | null; roast_date: string | null }
+): number | null {
+  if (!targets || targets.length === 0) return null;
+  const key = bagKey(bag);
+  const match = targets.find((t) => bagKey(t) === key);
+  return match ? match.target_ratio : null;
+}
+
+/** Actual brew ratio minus the target. Positive means the shot ran wetter
+ * than aimed for, negative tighter. */
+export function ratioDelta(
+  shot: Pick<Shot, 'dose_g' | 'yield_g'>,
+  targetRatio: number
+): number {
+  return ratio(shot) - targetRatio;
 }
 
 export function formatRatio(value: number): string {

@@ -2,20 +2,36 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { ShotForm, type ShotFormValues } from '../components/ShotForm';
 import { getShot, updateShot, type Shot } from '../lib/shots';
-import { toFormValues } from '../lib/shotView';
+import { toFormValues, targetForBag } from '../lib/shotView';
+import { listBagTargets, setBagTarget, type BagTarget } from '../lib/bagTargets';
 
 export function EditShotPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [shot, setShot] = useState<Shot | null | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
+  const [bagTargets, setBagTargets] = useState<BagTarget[]>([]);
+  const [bagTargetsLoaded, setBagTargetsLoaded] = useState(false);
+  const [target, setTarget] = useState<number | null>(null);
 
   useEffect(() => {
     if (!id) return;
     getShot(id)
       .then(setShot)
       .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load shot'));
+    listBagTargets()
+      .then(setBagTargets)
+      .catch(() => setBagTargets([]))
+      .finally(() => setBagTargetsLoaded(true));
   }, [id]);
+
+  useEffect(() => {
+    if (!shot || !bagTargetsLoaded) return;
+    setTarget(targetForBag(bagTargets, shot));
+    // Keyed on the shot's bag identity, not on bagTargets, so a late load
+    // never clobbers a value the user picked.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shot?.bean_name, shot?.roast_date, bagTargetsLoaded]);
 
   async function handleSubmit(values: ShotFormValues) {
     if (!id) return;
@@ -29,11 +45,15 @@ export function EditShotPage() {
       rating: values.rating ? Number(values.rating) : null,
       tasting_note: values.tasting_note || null,
     });
+    const bagRef = { bean_name: values.bean_name || null, roast_date: values.roast_date || null };
+    if (target !== targetForBag(bagTargets, bagRef)) {
+      await setBagTarget(bagRef, target);
+    }
     navigate(`/shots/${id}`);
   }
 
   if (error) return <p style={{ color: 'var(--color-accent-800)' }}>{error}</p>;
-  if (shot === undefined) return <p>Loading...</p>;
+  if (shot === undefined || !bagTargetsLoaded) return <p>Loading...</p>;
   if (shot === null) return <p>Shot not found.</p>;
 
   const values = toFormValues(shot);
@@ -55,7 +75,15 @@ export function EditShotPage() {
       >
         Edit shot
       </h1>
-      <ShotForm key={id} referenceValues={values} initialValues={values} submitLabel="Save changes" onSubmit={handleSubmit} />
+      <ShotForm
+        key={id}
+        referenceValues={values}
+        initialValues={values}
+        submitLabel="Save changes"
+        onSubmit={handleSubmit}
+        target={target}
+        onTargetChange={setTarget}
+      />
     </div>
   );
 }

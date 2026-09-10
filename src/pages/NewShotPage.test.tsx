@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { NewShotPage } from './NewShotPage';
 import { createShot, listShots } from '../lib/shots';
 import { uploadShotVideo } from '../lib/videos';
+import { listBagTargets, setBagTarget } from '../lib/bagTargets';
 
 vi.mock('../lib/shots', () => ({
   createShot: vi.fn(),
@@ -13,6 +14,11 @@ vi.mock('../lib/shots', () => ({
 vi.mock('../lib/videos', () => ({
   validateVideoFile: vi.fn().mockResolvedValue({ valid: true }),
   uploadShotVideo: vi.fn(),
+}));
+
+vi.mock('../lib/bagTargets', () => ({
+  listBagTargets: vi.fn(),
+  setBagTarget: vi.fn(),
 }));
 
 const navigateMock = vi.fn();
@@ -39,6 +45,8 @@ const referenceShot = {
 describe('NewShotPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(listBagTargets).mockResolvedValue([]);
+    vi.mocked(setBagTarget).mockResolvedValue(undefined);
   });
 
   it('pre-fills the form from the most recently active bag\'s reference shot', async () => {
@@ -206,5 +214,71 @@ describe('NewShotPage', () => {
     await waitFor(() => expect(uploadShotVideo).toHaveBeenCalledTimes(2));
     expect(createShot).toHaveBeenCalledTimes(1);
     expect(navigateMock).toHaveBeenCalledWith('/shots/shot-new');
+  });
+
+  it('seeds the target control from the selected bag\'s stored target', async () => {
+    vi.mocked(listShots).mockResolvedValue([referenceShot]);
+    vi.mocked(listBagTargets).mockResolvedValue([
+      {
+        id: 't1',
+        user_id: 'user-1',
+        bean_name: referenceShot.bean_name,
+        roast_date: referenceShot.roast_date,
+        target_ratio: 2,
+        created_at: '2026-09-04T00:00:00Z',
+        updated_at: '2026-09-04T00:00:00Z',
+      },
+    ]);
+
+    render(
+      <MemoryRouter>
+        <NewShotPage />
+      </MemoryRouter>
+    );
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Target 1:2' })).toHaveAttribute('aria-pressed', 'true')
+    );
+  });
+
+  it('persists a changed target on save', async () => {
+    vi.mocked(listShots).mockResolvedValue([referenceShot]);
+    vi.mocked(listBagTargets).mockResolvedValue([]);
+    vi.mocked(createShot).mockResolvedValue({ ...referenceShot, id: 'shot-new' });
+
+    render(
+      <MemoryRouter>
+        <NewShotPage />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => screen.getByRole('button', { name: 'Target 1:3' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Target 1:3' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save shot' }));
+
+    await waitFor(() =>
+      expect(setBagTarget).toHaveBeenCalledWith(
+        { bean_name: referenceShot.bean_name, roast_date: referenceShot.roast_date },
+        3
+      )
+    );
+  });
+
+  it('does not call setBagTarget when the target is unchanged', async () => {
+    vi.mocked(listShots).mockResolvedValue([referenceShot]);
+    vi.mocked(listBagTargets).mockResolvedValue([]);
+    vi.mocked(createShot).mockResolvedValue({ ...referenceShot, id: 'shot-new' });
+
+    render(
+      <MemoryRouter>
+        <NewShotPage />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => screen.getByRole('button', { name: 'Save shot' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save shot' }));
+
+    await waitFor(() => expect(createShot).toHaveBeenCalled());
+    expect(setBagTarget).not.toHaveBeenCalled();
   });
 });

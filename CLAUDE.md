@@ -41,9 +41,17 @@ trade-off discussion in `docs/mvp-design.md`.
   the barista assistant's `diagnosis`, `adjustment`, the `model` that
   produced them, and `history_count`. Denormalized `user_id` for RLS,
   mirroring `videos`. Written only by the `analyze-shot` Edge Function.
-- RLS on all three tables restricts every operation to `user_id = auth.uid()`.
+- `bag_targets`: optional per-bag target brew ratio. One row per bag,
+  keyed by `user_id` + `bean_name` + `roast_date` (the same pairing
+  `groupShotsByBag` uses), plus a `target_ratio` numeric. No row means
+  the bag has no target. Set only from the shot form (New or Edit),
+  persisted when the shot is saved.
+- RLS on all four tables restricts every operation to `user_id = auth.uid()`.
   Storage bucket policies mirror the same rule against the key prefix
   (`{user_id}/{shot_id}/{uuid}.{ext}`).
+- The shot list's dialed/dialing tag (`src/lib/shotView.ts` `bagState`)
+  compares the last two shots to the bag's `target_ratio` when one is
+  set, and falls back to shot-to-shot ratio convergence when it is not.
 - No `profiles` table in v1 - nothing needs app-specific user data beyond
   `auth.users`.
 - `bean_name` and `roast_date` are plain fields on `shots`, not a normalized

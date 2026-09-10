@@ -2,7 +2,8 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { listShots, type Shot } from '../lib/shots';
-import { groupShotsByBag, ratio, sameBag, bagLabel, type Bag } from '../lib/shotView';
+import { groupShotsByBag, ratio, sameBag, bagLabel, targetForBag, type Bag } from '../lib/shotView';
+import { listBagTargets, type BagTarget } from '../lib/bagTargets';
 import { scaleLinear, medianOf, niceDomain } from '../lib/chartScale';
 import { BagSelector } from '../components/BagSelector';
 
@@ -25,14 +26,21 @@ const TICK_STYLE = {
   fill: 'var(--color-neutral-600)',
 } as const;
 
-function RatioOverTimeChart({ shots }: { shots: Shot[] }) {
+function RatioOverTimeChart({
+  shots,
+  targetRatio,
+}: {
+  shots: Shot[];
+  targetRatio: number | null;
+}) {
   const times = shots.map((s) => s.pull_time_s);
   const ratios = shots.map((s) => ratio(s));
 
   // Pad the domain (and widen it when every shot landed on the same number)
-  // so points never stack on the axis or collapse to a single pixel.
+  // so points never stack on the axis or collapse to a single pixel. Fold
+  // the target into the y-domain input so the goal line stays on canvas.
   const [xLo, xHi] = niceDomain(times, 4);
-  const [yLo, yHi] = niceDomain(ratios, 0.3);
+  const [yLo, yHi] = niceDomain(targetRatio != null ? [...ratios, targetRatio] : ratios, 0.3);
   const x = scaleLinear(xLo, xHi, 40, 328);
   const y = scaleLinear(yLo, yHi, 158, 18);
 
@@ -45,6 +53,28 @@ function RatioOverTimeChart({ shots }: { shots: Shot[] }) {
     <svg viewBox="0 0 340 190" width="100%" style={{ overflow: 'visible' }}>
       <line x1="40" y1="158" x2="328" y2="158" stroke="var(--color-divider)" />
       <line x1="40" y1="18" x2="40" y2="158" stroke="var(--color-divider)" />
+
+      {targetRatio != null && (
+        <>
+          <line
+            x1="40"
+            y1={y(targetRatio)}
+            x2="328"
+            y2={y(targetRatio)}
+            stroke="var(--color-accent-300)"
+            strokeDasharray="4 3"
+          />
+          <text
+            className="num"
+            x="328"
+            y={y(targetRatio) - 4}
+            textAnchor="end"
+            style={TICK_STYLE}
+          >
+            1:{targetRatio.toFixed(1)}
+          </text>
+        </>
+      )}
 
       {shots.map((shot, i) => (
         <circle
@@ -147,7 +177,7 @@ function RatingByShotChart({ shots }: { shots: Shot[] }) {
   );
 }
 
-function BagTrends({ bag }: { bag: Bag }) {
+function BagTrends({ bag, targetRatio }: { bag: Bag; targetRatio: number | null }) {
   const shots = bag.shots;
   const recentTimes = shots.slice(0, 14).map((s) => s.pull_time_s);
   const medianTime = Math.round(medianOf(recentTimes));
@@ -166,7 +196,7 @@ function BagTrends({ bag }: { bag: Bag }) {
           Ratio against time
         </div>
         <p style={CAPTION_STYLE}>Is a longer pull pulling wetter or drier?</p>
-        <RatioOverTimeChart shots={shots} />
+        <RatioOverTimeChart shots={shots} targetRatio={targetRatio} />
       </div>
       <div>
         <div className="num" style={KICKER_STYLE}>
@@ -191,6 +221,7 @@ function BagTrends({ bag }: { bag: Bag }) {
 export function TrendsPage() {
   const [bags, setBags] = useState<Bag[]>([]);
   const [selectedBag, setSelectedBag] = useState<Bag | null>(null);
+  const [bagTargets, setBagTargets] = useState<BagTarget[]>([]);
 
   useEffect(() => {
     listShots().then((shots) => {
@@ -198,6 +229,9 @@ export function TrendsPage() {
       setBags(grouped);
       setSelectedBag(grouped[0] ?? null);
     });
+    listBagTargets()
+      .then(setBagTargets)
+      .catch(() => setBagTargets([]));
   }, []);
 
   return (
@@ -234,7 +268,7 @@ export function TrendsPage() {
       {!selectedBag || selectedBag.shots.length === 0 ? (
         <p style={{ padding: 'var(--space-4)' }}>No shots logged yet.</p>
       ) : (
-        <BagTrends bag={selectedBag} />
+        <BagTrends bag={selectedBag} targetRatio={targetForBag(bagTargets, selectedBag)} />
       )}
     </div>
   );

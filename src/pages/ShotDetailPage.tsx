@@ -10,7 +10,8 @@ import {
   type Video,
 } from '../lib/videos';
 import { getAnalysisForShot, type ShotAnalysis } from '../lib/analyses';
-import { groupShotsByBag, deltas, ratio, daysSinceRoast, sameBag } from '../lib/shotView';
+import { groupShotsByBag, deltas, ratio, daysSinceRoast, sameBag, targetForBag, ratioDelta } from '../lib/shotView';
+import { listBagTargets, type BagTarget } from '../lib/bagTargets';
 import { formatMass, formatSigned, formatRoastAge } from '../lib/format';
 import { RatioFigure } from '../components/shot-display/RatioFigure';
 import { PullTimeFigure } from '../components/shot-display/PullTimeFigure';
@@ -38,6 +39,7 @@ export function ShotDetailPage() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [analysis, setAnalysis] = useState<ShotAnalysis | null>(null);
   const [analysisReady, setAnalysisReady] = useState(false);
+  const [bagTargets, setBagTargets] = useState<BagTarget[]>([]);
 
   useEffect(() => {
     if (!id) return;
@@ -48,6 +50,9 @@ export function ShotDetailPage() {
         return listShots().then((all) => setPreviousShot(findPreviousShot(s, all)));
       })
       .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load shot'));
+    listBagTargets()
+      .then(setBagTargets)
+      .catch(() => setBagTargets([]));
   }, [id]);
 
   useEffect(() => {
@@ -111,6 +116,7 @@ export function ShotDetailPage() {
   const shotDeltas = previousShot ? deltas(shot, previousShot) : null;
   const age = shot.roast_date ? daysSinceRoast(shot.roast_date) : null;
   const timestamp = new Date(shot.created_at).toLocaleString();
+  const target = targetForBag(bagTargets, shot);
 
   return (
     <div className="max-w-md mx-auto flex flex-col min-h-[100dvh]">
@@ -166,6 +172,20 @@ export function ShotDetailPage() {
           <RatioFigure value={ratio(shot)} size="xl" />
           <PullTimeFigure seconds={shot.pull_time_s} size="xl" />
         </div>
+        {target != null && (
+          <div
+            className="num"
+            style={{
+              fontSize: '11px',
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              opacity: 0.55,
+              marginTop: '4px',
+            }}
+          >
+            target 1:{target.toFixed(1)} · {formatSigned(ratioDelta(shot, target), 2)}
+          </div>
+        )}
       </div>
 
       <div style={{ padding: '0 var(--space-4) var(--space-3)' }}>

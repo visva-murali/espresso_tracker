@@ -6,8 +6,10 @@ import { ShotDetailPage } from './ShotDetailPage';
 import { getShot, listShots, deleteShot } from '../lib/shots';
 import { getVideoForShot, getVideoPlaybackUrl } from '../lib/videos';
 import { getAnalysisForShot } from '../lib/analyses';
+import { listBagTargets } from '../lib/bagTargets';
 
 vi.mock('../lib/shots', () => ({ getShot: vi.fn(), listShots: vi.fn(), deleteShot: vi.fn() }));
+vi.mock('../lib/bagTargets', () => ({ listBagTargets: vi.fn() }));
 vi.mock('../lib/videos', () => ({
   getVideoForShot: vi.fn(),
   getVideoPlaybackUrl: vi.fn(),
@@ -73,6 +75,7 @@ describe('ShotDetailPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(getAnalysisForShot).mockResolvedValue(null);
+    vi.mocked(listBagTargets).mockResolvedValue([]);
   });
 
   it('renders the hero ratio, pull time, and delta block against the previous shot on the bag', async () => {
@@ -223,5 +226,40 @@ describe('ShotDetailPage', () => {
 
     await waitFor(() => expect(deleteShot).toHaveBeenCalledWith('shot-1'));
     expect(navigateMock).toHaveBeenCalledWith('/');
+  });
+
+  it('shows the target readout when the bag has a target', async () => {
+    vi.mocked(getShot).mockResolvedValue(shot);
+    vi.mocked(listShots).mockResolvedValue([shot]);
+    vi.mocked(getVideoForShot).mockResolvedValue(null);
+    vi.mocked(listBagTargets).mockResolvedValue([
+      {
+        id: 't1',
+        user_id: 'user-1',
+        bean_name: shot.bean_name,
+        roast_date: shot.roast_date,
+        target_ratio: 2.5,
+        created_at: '2026-09-04T00:00:00Z',
+        updated_at: '2026-09-04T00:00:00Z',
+      },
+    ]);
+
+    renderAtShot('shot-1');
+
+    // ratio 2.00 against target 2.5 -> -0.50
+    expect(await screen.findByText(/target 1:2\.5/)).toBeInTheDocument();
+    expect(screen.getByText(/−0\.50/)).toBeInTheDocument();
+  });
+
+  it('omits the target readout when the bag has no target', async () => {
+    vi.mocked(getShot).mockResolvedValue(shot);
+    vi.mocked(listShots).mockResolvedValue([shot]);
+    vi.mocked(getVideoForShot).mockResolvedValue(null);
+    vi.mocked(listBagTargets).mockResolvedValue([]);
+
+    renderAtShot('shot-1');
+
+    await screen.findByText(/Kenya Nyeri AA/);
+    expect(screen.queryByText(/target 1:/)).not.toBeInTheDocument();
   });
 });
