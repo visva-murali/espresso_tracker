@@ -9,7 +9,7 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "test": "vitest",
-    "deploy:supabase": "supabase db push && supabase functions deploy analyze-shot"
+    "deploy:supabase": "supabase db push && supabase functions deploy"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.38.0",

@@ -31,10 +31,11 @@ trade-off discussion in `docs/mvp-design.md`.
 The frontend redeploys automatically on push to `main` (Vercel). The
 database and Edge Functions do not: after a merge that adds a migration
 or changes `supabase/functions/`, run `npm run deploy:supabase` from the
-main checkout (`supabase db push` then `supabase functions deploy
-analyze-shot`). It prompts before applying, so read what it lists.
-Function env vars (`GROQ_API_KEY` etc.) are set once with
-`supabase secrets set` and are not part of this script.
+main checkout. It runs `supabase db push` (prompts before applying, so
+read what it lists) then `supabase functions deploy` with no name, which
+deploys every function under `supabase/functions/` - a new function is
+picked up with no script change. Function env vars (`GROQ_API_KEY` etc.)
+are set once with `supabase secrets set` and are not part of this script.
 
 ## Data model
 
