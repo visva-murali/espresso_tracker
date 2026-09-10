@@ -158,4 +158,44 @@ describe('EditShotPage', () => {
     await waitFor(() => expect(updateShot).toHaveBeenCalled());
     expect(setBagTarget).not.toHaveBeenCalled();
   });
+
+  it('seeds the pull-time range from the shot\'s bag', async () => {
+    vi.mocked(getShot).mockResolvedValue(shot);
+    vi.mocked(listBagTargets).mockResolvedValue([
+      {
+        id: 't1',
+        user_id: 'user-1',
+        bean_name: shot.bean_name,
+        roast_date: shot.roast_date,
+        target_ratio: null,
+        target_pull_time_low_s: 27,
+        target_pull_time_high_s: 32,
+        created_at: '2026-09-04T00:00:00Z',
+        updated_at: '2026-09-04T00:00:00Z',
+      },
+    ]);
+
+    renderAtShot('shot-1');
+
+    await waitFor(() => expect(screen.getByText(/27s/)).toBeInTheDocument());
+  });
+
+  it('writes the range on save when it changed', async () => {
+    vi.mocked(getShot).mockResolvedValue(shot);
+    vi.mocked(updateShot).mockResolvedValue({ ...shot });
+    vi.mocked(listBagTargets).mockResolvedValue([]);
+
+    renderAtShot('shot-1');
+
+    await waitFor(() => screen.getByRole('button', { name: 'No pull time target' }));
+    fireEvent.click(screen.getByRole('button', { name: 'No pull time target' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+
+    await waitFor(() =>
+      expect(setBagTarget).toHaveBeenCalledWith(
+        { bean_name: shot.bean_name, roast_date: shot.roast_date },
+        expect.objectContaining({ pullTime: [26, 30] })
+      )
+    );
+  });
 });
