@@ -276,4 +276,57 @@ describe('TrendsPage', () => {
     await waitFor(() => expect(container.querySelector('svg')).toBeTruthy());
     expect(container.querySelector('line[stroke-dasharray]')).toBeNull();
   });
+
+  it('draws the pull-time target band and label when the bag has a range', async () => {
+    const bagShots = [
+      { ...shots[0], id: 's2', pull_time_s: 29 },
+      { ...shots[0], id: 's1', pull_time_s: 27 },
+    ];
+    vi.mocked(listShots).mockResolvedValue(bagShots);
+    vi.mocked(listBagTargets).mockResolvedValue([
+      {
+        id: 't1',
+        user_id: 'user-1',
+        bean_name: shots[0].bean_name,
+        roast_date: shots[0].roast_date,
+        target_ratio: null,
+        target_pull_time_low_s: 26,
+        target_pull_time_high_s: 31,
+        created_at: '2026-09-04T00:00:00Z',
+        updated_at: '2026-09-04T00:00:00Z',
+      },
+    ]);
+
+    render(
+      <MemoryRouter>
+        <TrendsPage />
+      </MemoryRouter>
+    );
+
+    await waitFor(() =>
+      expect(screen.getByText('Pull time consistency')).toBeInTheDocument()
+    );
+    const pullSvg = screen.getByText('Pull time consistency').parentElement!.querySelector('svg')!;
+    expect(pullSvg.textContent).toContain('26-31s');
+    expect(pullSvg.querySelector('rect[data-band="target"]')).toBeTruthy();
+  });
+
+  it('draws no target band when the bag has no range', async () => {
+    const bagShots = [
+      { ...shots[0], id: 's2', pull_time_s: 29 },
+      { ...shots[0], id: 's1', pull_time_s: 27 },
+    ];
+    vi.mocked(listShots).mockResolvedValue(bagShots);
+    vi.mocked(listBagTargets).mockResolvedValue([]);
+
+    render(
+      <MemoryRouter>
+        <TrendsPage />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => expect(screen.getByText('Pull time consistency')).toBeInTheDocument());
+    const pullSvg = screen.getByText('Pull time consistency').parentElement!.querySelector('svg')!;
+    expect(pullSvg.querySelector('rect[data-band="target"]')).toBeNull();
+  });
 });
