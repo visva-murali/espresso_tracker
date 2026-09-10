@@ -6,6 +6,7 @@ import { createShot, listShots, type Shot } from '../lib/shots';
 import { groupShotsByBag, referenceShot as pickReferenceShot, sameBag, bagKey, toFormValues, targetForBag, type Bag } from '../lib/shotView';
 import { listBagTargets, setBagTarget, type BagTarget } from '../lib/bagTargets';
 import { validateVideoFile, uploadShotVideo } from '../lib/videos';
+import { LoadingBar } from '../components/LoadingBar';
 
 /**
  * Bean name and roast date for a bag with no shots yet - either a
@@ -202,6 +203,8 @@ export function NewShotPage() {
       </header>
 
       {error && <p style={{ color: 'var(--color-accent-800)', padding: '0 var(--space-4)' }}>{error}</p>}
+
+      {!error && !showNewBagFields && !(formValues && bagTargetsLoaded) && <LoadingBar />}
 
       {!showNewBagFields && selectedBag && !newBagConfirmed && (
         <div

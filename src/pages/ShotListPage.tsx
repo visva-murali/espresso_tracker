@@ -9,6 +9,7 @@ import { useAuth } from '../context/AuthContext';
 import { SearchIcon, MenuIcon, VideoIcon } from '../components/icons';
 import { Logo } from '../components/Logo';
 import { StickyActionBar } from '../components/StickyActionBar';
+import { LoadingBar } from '../components/LoadingBar';
 import { RatioFigure } from '../components/shot-display/RatioFigure';
 import { PullTimeFigure } from '../components/shot-display/PullTimeFigure';
 import { RatingDots } from '../components/shot-display/RatingDots';
@@ -208,7 +209,7 @@ export function ShotListPage() {
       </div>
 
       {error && <p style={{ color: 'var(--color-accent-800)' }}>{error}</p>}
-      {!shots && !error && <p style={{ padding: 'var(--space-4)' }}>Loading...</p>}
+      {!shots && !error && <LoadingBar />}
       {shots && shots.length === 0 && (
         <p style={{ padding: 'var(--space-4)' }}>No shots logged yet.</p>
       )}

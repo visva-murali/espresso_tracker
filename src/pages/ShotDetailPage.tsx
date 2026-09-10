@@ -1,5 +1,5 @@
 // src/pages/ShotDetailPage.tsx
-import { useEffect, useState, type ChangeEvent } from 'react';
+import { useEffect, useState, type ChangeEvent, type ReactNode } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { getShot, deleteShot, listShots, type Shot } from '../lib/shots';
 import {
@@ -17,8 +17,13 @@ import { RatioFigure } from '../components/shot-display/RatioFigure';
 import { PullTimeFigure } from '../components/shot-display/PullTimeFigure';
 import { StickyActionBar } from '../components/StickyActionBar';
 import { ShotAssistant } from '../components/ShotAssistant';
+import { LoadingBar } from '../components/LoadingBar';
 
 type VideoState = 'none' | 'uploading' | 'ready' | 'unplayable';
+
+function Frame({ children }: { children: ReactNode }) {
+  return <div className="max-w-md mx-auto flex flex-col min-h-[100dvh]">{children}</div>;
+}
 
 function findPreviousShot(shot: Shot, allShots: Shot[]): Shot | null {
   const bag = groupShotsByBag(allShots).find((b) => sameBag(b, shot));
@@ -109,28 +114,19 @@ export function ShotDetailPage() {
     }
   }
 
-  if (error) return <p style={{ color: 'var(--color-accent-800)' }}>{error}</p>;
-  if (shot === undefined) return <p>Loading...</p>;
-  if (shot === null) return <p>Shot not found.</p>;
-
-  const shotDeltas = previousShot ? deltas(shot, previousShot) : null;
-  const age = shot.roast_date ? daysSinceRoast(shot.roast_date) : null;
-  const timestamp = new Date(shot.created_at).toLocaleString();
-  const target = targetForBag(bagTargets, shot);
-
-  return (
-    <div className="max-w-md mx-auto flex flex-col min-h-[100dvh]">
-      <header
-        className="flex justify-between items-center border-b border-[var(--color-divider)]"
-        style={{ padding: 'var(--space-3) var(--space-4)' }}
+  const header = (
+    <header
+      className="flex justify-between items-center border-b border-[var(--color-divider)]"
+      style={{ padding: 'var(--space-3) var(--space-4)' }}
+    >
+      <Link
+        to="/"
+        className="rounded-[var(--radius-sm)] px-1 py-0.5 hover:bg-[var(--color-accent-100)] active:bg-[var(--color-accent-200)]"
+        style={{ color: 'var(--color-accent)' }}
       >
-        <Link
-          to="/"
-          className="rounded-[var(--radius-sm)] px-1 py-0.5 hover:bg-[var(--color-accent-100)] active:bg-[var(--color-accent-200)]"
-          style={{ color: 'var(--color-accent)' }}
-        >
-          Shots
-        </Link>
+        Shots
+      </Link>
+      {shot && (
         <div className="flex items-center" style={{ gap: 'var(--space-2)' }}>
           <Link
             to={`/shots/${id}/edit`}
@@ -145,7 +141,42 @@ export function ShotDetailPage() {
             Duplicate
           </Link>
         </div>
-      </header>
+      )}
+    </header>
+  );
+
+  if (error)
+    return (
+      <Frame>
+        {header}
+        <p style={{ color: 'var(--color-accent-800)', padding: 'var(--space-3) var(--space-4)' }}>
+          {error}
+        </p>
+      </Frame>
+    );
+  if (shot === undefined)
+    return (
+      <Frame>
+        {header}
+        <LoadingBar />
+      </Frame>
+    );
+  if (shot === null)
+    return (
+      <Frame>
+        {header}
+        <p style={{ padding: 'var(--space-3) var(--space-4)' }}>Shot not found.</p>
+      </Frame>
+    );
+
+  const shotDeltas = previousShot ? deltas(shot, previousShot) : null;
+  const age = shot.roast_date ? daysSinceRoast(shot.roast_date) : null;
+  const timestamp = new Date(shot.created_at).toLocaleString();
+  const target = targetForBag(bagTargets, shot);
+
+  return (
+    <Frame>
+      {header}
 
       {actionError && (
         <p
@@ -248,22 +279,8 @@ export function ShotDetailPage() {
               </span>
             </div>
             {videoState === 'uploading' && (
-              <div
-                style={{
-                  height: '2px',
-                  background: 'var(--color-accent-200)',
-                  marginTop: '4px',
-                  overflow: 'hidden',
-                }}
-              >
-                <div
-                  style={{
-                    height: '100%',
-                    width: '40%',
-                    background: 'var(--color-accent)',
-                    animation: 'indeterminate 1.2s ease-in-out infinite',
-                  }}
-                />
+              <div style={{ marginTop: '4px' }}>
+                <LoadingBar />
               </div>
             )}
           </>
@@ -363,6 +380,6 @@ export function ShotDetailPage() {
           </Link>
         </div>
       </StickyActionBar>
-    </div>
+    </Frame>
   );
 }

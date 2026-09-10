@@ -50,6 +50,17 @@ describe('EditShotPage', () => {
     vi.mocked(setBagTarget).mockResolvedValue(undefined);
   });
 
+  it('keeps the back-to-shot link on screen while the shot is still loading', async () => {
+    vi.mocked(getShot).mockReturnValue(new Promise(() => {}));
+
+    renderAtShot('shot-1');
+
+    await waitFor(() => {
+      expect(screen.getByRole('link', { name: 'Shot' })).toBeInTheDocument();
+      expect(screen.getByRole('status', { name: /loading/i })).toBeInTheDocument();
+    });
+  });
+
   it('pre-fills the nudge rows from the shot\'s saved values with no delta shown', async () => {
     vi.mocked(getShot).mockResolvedValue(shot);
     renderAtShot('shot-1');
