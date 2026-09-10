@@ -150,4 +150,49 @@ describe('ShotForm', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Add tasting note' }));
     expect(screen.getByLabelText(/tasting note/i)).toBeInTheDocument();
   });
+
+  it('shows the actual-minus-target delta on the ratio row when a target is set', () => {
+    render(
+      <ShotForm
+        referenceValues={reference}
+        initialValues={{ ...reference, dose_g: '18.0', yield_g: '41.4' }}
+        submitLabel="Save shot"
+        onSubmit={vi.fn()}
+        target={2}
+        onTargetChange={vi.fn()}
+      />
+    );
+    // ratio 41.4 / 18 = 2.30, target 2 -> +0.30
+    expect(screen.getByText('+0.30')).toBeInTheDocument();
+  });
+
+  it('shows no target delta when target is null', () => {
+    render(
+      <ShotForm
+        referenceValues={reference}
+        initialValues={{ ...reference, dose_g: '18.0', yield_g: '41.4' }}
+        submitLabel="Save shot"
+        onSubmit={vi.fn()}
+        target={null}
+        onTargetChange={vi.fn()}
+      />
+    );
+    expect(screen.queryByText('+0.30')).not.toBeInTheDocument();
+  });
+
+  it('forwards a quick-pick click to onTargetChange', () => {
+    const onTargetChange = vi.fn();
+    render(
+      <ShotForm
+        referenceValues={reference}
+        initialValues={reference}
+        submitLabel="Save shot"
+        onSubmit={vi.fn()}
+        target={null}
+        onTargetChange={onTargetChange}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Target 1:2' }));
+    expect(onTargetChange).toHaveBeenCalledWith(2);
+  });
 });

@@ -1,6 +1,7 @@
 import { useState, type FormEvent, type ReactNode } from 'react';
 import { formatSigned } from '../lib/format';
 import { StickyActionBar } from './StickyActionBar';
+import { RatioTargetControl } from './RatioTargetControl';
 
 export type ShotFormValues = {
   grind_setting: string;
@@ -29,6 +30,13 @@ type Props = {
   initialValues: ShotFormValues;
   submitLabel: string;
   onSubmit: (values: ShotFormValues) => Promise<void>;
+  /**
+   * The bag's target ratio, owned by the page. When set, the Ratio row
+   * shows the live actual-minus-target delta and the segmented control
+   * reflects the current value.
+   */
+  target?: number | null;
+  onTargetChange?: (next: number | null) => void;
   /**
    * Extra fields rendered inside the form, between the rating/note section
    * and the sticky action bar - used by NewShotPage for its optional
@@ -140,7 +148,15 @@ function NudgeRow({
   );
 }
 
-export function ShotForm({ referenceValues, initialValues, submitLabel, onSubmit, children }: Props) {
+export function ShotForm({
+  referenceValues,
+  initialValues,
+  submitLabel,
+  onSubmit,
+  target = null,
+  onTargetChange,
+  children,
+}: Props) {
   const [values, setValues] = useState(initialValues);
   const [noteOpen, setNoteOpen] = useState(Boolean(initialValues.tasting_note));
   const [error, setError] = useState<string | null>(null);
@@ -215,7 +231,6 @@ export function ShotForm({ referenceValues, initialValues, submitLabel, onSubmit
       ))}
 
       <div
-        className="flex justify-between items-baseline"
         style={{
           margin: '0 var(--space-4)',
           padding: 'var(--space-3) 0',
@@ -223,15 +238,26 @@ export function ShotForm({ referenceValues, initialValues, submitLabel, onSubmit
           borderBottom: '1px solid var(--color-divider)',
         }}
       >
-        <span style={{ fontSize: '12px', opacity: 0.65 }}>Ratio</span>
-        {ratioValue != null && (
-          <span className="fig" style={{ fontSize: '23px' }}>
-            <span className="fig" style={{ fontWeight: 400, color: 'var(--color-neutral-700)' }}>
-              1:
+        <div className="flex justify-between items-baseline">
+          <span style={{ fontSize: '12px', opacity: 0.65 }}>Ratio</span>
+          {ratioValue != null && (
+            <span className="fig" style={{ fontSize: '23px' }}>
+              <span className="fig" style={{ fontWeight: 400, color: 'var(--color-neutral-700)' }}>
+                1:
+              </span>
+              {ratioValue.toFixed(2)}
+              {target != null && (
+                <span
+                  className="fig"
+                  style={{ fontSize: '14px', color: 'var(--color-accent-700)', marginLeft: '6px' }}
+                >
+                  {formatSigned(ratioValue - target, 2)}
+                </span>
+              )}
             </span>
-            {ratioValue.toFixed(2)}
-          </span>
-        )}
+          )}
+        </div>
+        <RatioTargetControl value={target} onChange={(next) => onTargetChange?.(next)} />
       </div>
 
       <div className="flex flex-col" style={{ padding: 'var(--space-3) var(--space-4)', gap: 'var(--space-3)' }}>
