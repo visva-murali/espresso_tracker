@@ -1,7 +1,7 @@
 // supabase/functions/analyze-shot/orchestrator.ts
-import { buildPrompt } from './prompt';
-import { GroqError } from './types';
-import type { Deps, Result, GroqResult, AnalysisRow } from './types';
+import { buildPrompt } from './prompt.ts';
+import { GroqError } from './types.ts';
+import type { Deps, Result, GroqResult, AnalysisRow } from './types.ts';
 
 const MAX_TEXT = 600;
 
