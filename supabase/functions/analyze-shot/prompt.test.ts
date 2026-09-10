@@ -24,13 +24,13 @@ const NOW = new Date('2026-09-04T08:00:00Z');
 
 describe('buildPrompt', () => {
   it('puts the fixed rules in the system message', () => {
-    const { system } = buildPrompt(makeShot({}), [], { mixedBeans: false }, NOW);
+    const { system } = buildPrompt(makeShot({}), [], { mixedBeans: false, targetRatio: null }, NOW);
     expect(system).toContain('espresso dial-in assistant');
     expect(system).toContain('{"diagnosis"');
   });
 
   it('renders the bean line with days off roast', () => {
-    const { user } = buildPrompt(makeShot({}), [], { mixedBeans: false }, NOW);
+    const { user } = buildPrompt(makeShot({}), [], { mixedBeans: false, targetRatio: null }, NOW);
     expect(user).toContain('Bean: Kenya Nyeri AA, roasted 2026-08-23 (12 days off roast)');
   });
 
@@ -38,7 +38,7 @@ describe('buildPrompt', () => {
     const { user } = buildPrompt(
       makeShot({ grind_setting: "2 o'clock", dose_g: 18, yield_g: 41.4, pull_time_s: 32 }),
       [],
-      { mixedBeans: false },
+      { mixedBeans: false, targetRatio: null },
       NOW
     );
     expect(user).toContain("grind 2 o'clock");
@@ -50,7 +50,7 @@ describe('buildPrompt', () => {
     const { user } = buildPrompt(
       makeShot({ rating: null, tasting_note: null }),
       [],
-      { mixedBeans: false },
+      { mixedBeans: false, targetRatio: null },
       NOW
     );
     expect(user).not.toContain('null');
@@ -58,7 +58,7 @@ describe('buildPrompt', () => {
   });
 
   it('says there are no prior shots when the history is empty', () => {
-    const { user } = buildPrompt(makeShot({}), [], { mixedBeans: false }, NOW);
+    const { user } = buildPrompt(makeShot({}), [], { mixedBeans: false, targetRatio: null }, NOW);
     expect(user).toContain('No prior shots on this bag.');
   });
 
@@ -67,7 +67,7 @@ describe('buildPrompt', () => {
       makeShot({ id: 'p1', created_at: '2026-09-03T07:42:00Z', yield_g: 37.4, pull_time_s: 28, rating: 3 }),
       makeShot({ id: 'p2', created_at: '2026-09-02T07:42:00Z', yield_g: 36.1, pull_time_s: 26, rating: null }),
     ];
-    const { user } = buildPrompt(makeShot({}), prior, { mixedBeans: false }, NOW);
+    const { user } = buildPrompt(makeShot({}), prior, { mixedBeans: false, targetRatio: null }, NOW);
     expect(user).toContain('Prior shots on this bag (newest first):');
     expect(user).toContain('1 day earlier:');
     expect(user).toContain('2 days earlier:');
@@ -77,7 +77,7 @@ describe('buildPrompt', () => {
   it('floors a partial elapsed day in the relative-day label (matches daysSinceRoast)', () => {
     // 1 day and 14 hours earlier should read as "1 day earlier", not "2 days earlier".
     const prior = [makeShot({ id: 'p1', created_at: '2026-09-02T17:42:00Z' })];
-    const { user } = buildPrompt(makeShot({}), prior, { mixedBeans: false }, NOW);
+    const { user } = buildPrompt(makeShot({}), prior, { mixedBeans: false, targetRatio: null }, NOW);
     expect(user).toContain('1 day earlier:');
     expect(user).not.toContain('2 days earlier:');
   });
@@ -86,10 +86,50 @@ describe('buildPrompt', () => {
     const { user } = buildPrompt(
       makeShot({ bean_name: null, roast_date: null }),
       [makeShot({ id: 'p1', created_at: '2026-09-03T07:42:00Z' })],
-      { mixedBeans: true },
+      { mixedBeans: true, targetRatio: null },
       NOW
     );
     expect(user).toContain('Bean: not recorded');
     expect(user).toContain('Recent shots (may be different beans, newest first):');
+  });
+
+  it('renders the target ratio and the signed distance from it when a target is set', () => {
+    const { user } = buildPrompt(
+      makeShot({ dose_g: 18, yield_g: 37 }), // 1:2.06
+      [],
+      { mixedBeans: false, targetRatio: 2 },
+      NOW
+    );
+    expect(user).toContain('target ratio 1:2.00 (this shot is +0.06)');
+  });
+
+  it('shows a negative distance when the shot is tighter than the target', () => {
+    const { user } = buildPrompt(
+      makeShot({ dose_g: 18, yield_g: 34.2 }), // 1:1.90
+      [],
+      { mixedBeans: false, targetRatio: 2 },
+      NOW
+    );
+    expect(user).toContain('target ratio 1:2.00 (this shot is -0.10)');
+  });
+
+  it('says no target is set when targetRatio is null', () => {
+    const { user } = buildPrompt(makeShot({}), [], { mixedBeans: false, targetRatio: null }, NOW);
+    expect(user).toContain('target ratio: none set for this bag');
+    expect(user).not.toContain('target ratio 1:');
+  });
+
+  it('system message carries the lever map, the repeat-it path, and the unchanged-variable rule', () => {
+    const { system } = buildPrompt(makeShot({}), [], { mixedBeans: false, targetRatio: 2 }, NOW);
+    expect(system).toContain('espresso dial-in assistant');
+    expect(system).toContain('{"diagnosis"');
+    // judges against the target, does not infer intent from history
+    expect(system).toMatch(/target.*stated intent|stated intent.*target/i);
+    // lever map
+    expect(system).toMatch(/Yield.*ratio/);
+    // the "you're dialed, repeat it" escape hatch
+    expect(system).toMatch(/repeat it/i);
+    // do not blame a variable that did not move
+    expect(system).toMatch(/did not change|same as the previous shot/i);
   });
 });
