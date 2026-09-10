@@ -41,7 +41,7 @@ trade-off discussion in `docs/mvp-design.md`.
   the barista assistant's `diagnosis`, `adjustment`, the `model` that
   produced them, and `history_count`. Denormalized `user_id` for RLS,
   mirroring `videos`. Written only by the `analyze-shot` Edge Function.
-- RLS on both tables restricts every operation to `user_id = auth.uid()`.
+- RLS on all three tables restricts every operation to `user_id = auth.uid()`.
   Storage bucket policies mirror the same rule against the key prefix
   (`{user_id}/{shot_id}/{uuid}.{ext}`).
 - No `profiles` table in v1 - nothing needs app-specific user data beyond

@@ -74,6 +74,14 @@ describe('buildPrompt', () => {
     expect(user).toContain('(no rating)');
   });
 
+  it('floors a partial elapsed day in the relative-day label (matches daysSinceRoast)', () => {
+    // 1 day and 14 hours earlier should read as "1 day earlier", not "2 days earlier".
+    const prior = [makeShot({ id: 'p1', created_at: '2026-09-02T17:42:00Z' })];
+    const { user } = buildPrompt(makeShot({}), prior, { mixedBeans: false }, NOW);
+    expect(user).toContain('1 day earlier:');
+    expect(user).not.toContain('2 days earlier:');
+  });
+
   it('switches the bean and history lines when mixedBeans is set', () => {
     const { user } = buildPrompt(
       makeShot({ bean_name: null, roast_date: null }),

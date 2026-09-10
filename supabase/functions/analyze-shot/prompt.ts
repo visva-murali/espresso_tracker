@@ -39,7 +39,9 @@ function currentShotBlock(shot: ShotRow): string {
 }
 
 function relativeDayLabel(prior: ShotRow, current: ShotRow): string {
-  const days = Math.round(
+  // Math.floor to match daysSinceRoast in shot-math.ts, so the prompt
+  // reports elapsed days one consistent way.
+  const days = Math.floor(
     (new Date(current.created_at).getTime() - new Date(prior.created_at).getTime()) / MS_PER_DAY
   );
   if (days <= 0) return 'same day';
