@@ -26,7 +26,7 @@
 ## File Structure
 
 **Created:**
-- `supabase/migrations/00000000000004_bag_targets.sql` - the table, its unique index, RLS policies, updated-at trigger.
+- `supabase/migrations/00000000000005_bag_targets.sql` - the table, its unique index, RLS policies, updated-at trigger. (`00000000000004` is taken by the shipped `shot_analyses` migration.)
 - `src/lib/bagTargets.ts` - `BagTarget` type, `listBagTargets`, `setBagTarget`.
 - `src/lib/bagTargets.test.ts` - integration test against local Supabase, styled like `src/lib/shots.test.ts`.
 - `src/components/RatioTargetControl.tsx` - the `Off / 1:2 / 1:2.5 / 1:3` segmented control plus 0.1 nudge buttons.
@@ -59,31 +59,62 @@
 - Integration tests (`src/lib/bagTargets.test.ts`, `tests/integration/rls.test.ts`) need local Supabase up with the new migration applied and `.env.test.local` present with `SUPABASE_LOCAL_SERVICE_ROLE_KEY` and `VITE_SUPABASE_ANON_KEY`:
   ```bash
   npx supabase start
-  npx supabase db reset   # applies every migration including the new one
+  npx supabase migration up   # applies the new migration without wiping local data
   npx vitest run tests/integration/rls.test.ts src/lib/bagTargets.test.ts
   ```
 - Full run before the final commit: `npx vitest run` with local Supabase up.
+
+### Mocking `listBagTargets` in existing page tests (Tasks 7-11)
+
+All five pages call `listBagTargets()` in a mount effect and chain
+`.then/.catch/.finally` on the result. A bare `vi.fn()` returns
+`undefined`, so `.then` throws synchronously inside the effect and the
+test fails - and `NewShotPage` / `EditShotPage` additionally gate their
+form render on `bagTargetsLoaded`, which never flips if the promise
+chain throws. So **every** test in these files, not just the new ones,
+needs `listBagTargets` mocked to resolve an array.
+
+- `ShotDetailPage.test.tsx` and `NewShotPage.test.tsx` have a `beforeEach`
+  (`NewShotPage` calls `vi.clearAllMocks()` first): add
+  `vi.mocked(listBagTargets).mockResolvedValue([])` there, after any
+  `clearAllMocks`. `NewShotPage` also needs
+  `vi.mocked(setBagTarget).mockResolvedValue(undefined)`.
+- `ShotListPage.test.tsx`, `TrendsPage.test.tsx`, `EditShotPage.test.tsx`
+  have **no** `beforeEach` and set mocks inline per test. Add
+  `beforeEach(() => { vi.mocked(listBagTargets).mockResolvedValue([]); })`
+  (import `beforeEach` from `vitest`), placed after any existing
+  top-level mock setup and not clobbering a per-test `mockResolvedValue`.
+  `EditShotPage` also needs the `setBagTarget` default.
+
+### Test helper names (Tasks 7-11)
+
+The plan's task steps use placeholder render-helper names. The real ones:
+`EditShotPage.test.tsx` and `ShotDetailPage.test.tsx` both use
+`renderAtShot(id)`; `NewShotPage.test.tsx`, `ShotListPage.test.tsx`, and
+`TrendsPage.test.tsx` have no helper and render
+`<MemoryRouter>...<Page /></MemoryRouter>` inline per test. `TrendsPage`'s
+shot fixture is named `shots` (an array), not `baseShot`.
 
 ---
 
 ## Task 1: `bag_targets` table and RLS isolation
 
 **Files:**
-- Create: `supabase/migrations/00000000000004_bag_targets.sql`
+- Create: `supabase/migrations/00000000000005_bag_targets.sql`
 - Test: `tests/integration/rls.test.ts` (append two `it` blocks in a new `describe`)
 
 **Interfaces:**
 - Consumes: the `set_updated_at()` trigger function and `auth.users` table from `supabase/migrations/00000000000001_shots_and_videos.sql`.
 - Produces: a `bag_targets` table with columns `id uuid`, `user_id uuid`, `bean_name text null`, `roast_date date null`, `target_ratio numeric`, `created_at timestamptz`, `updated_at timestamptz`; a unique index on `(user_id, bean_name, roast_date) nulls not distinct`; four `bag_targets_*_own` RLS policies.
 
-> If the Barista Assistant migration (`docs/barista-assistant-design.md`, also numbered `00000000000004_shot_analyses.sql`) has already landed, name this file `00000000000005_bag_targets.sql` instead. Nothing else in the plan changes.
+> The shipped `00000000000004_shot_analyses.sql` (Barista Assistant) takes slot 4, so this migration is `00000000000005`. Local Postgres is major version 17 (`supabase/config.toml`), so `nulls not distinct` is supported.
 
 - [ ] **Step 1: Write the migration**
 
-Create `supabase/migrations/00000000000004_bag_targets.sql`:
+Create `supabase/migrations/00000000000005_bag_targets.sql`:
 
 ```sql
--- supabase/migrations/00000000000004_bag_targets.sql
+-- supabase/migrations/00000000000005_bag_targets.sql
 
 create table bag_targets (
   id uuid primary key default gen_random_uuid(),
@@ -121,9 +152,9 @@ for each row execute function set_updated_at();
 Run:
 ```bash
 npx supabase start
-npx supabase db reset
+npx supabase migration up
 ```
-Expected: `db reset` replays all migrations with no error and prints `Finished supabase db reset`.
+Expected: the new migration applies with no error and prints `Applying migration 00000000000005_bag_targets.sql...`. (Use `npx supabase db reset` only if migration history is out of sync; it replays every migration and wipes local data.)
 
 - [ ] **Step 3: Write the failing RLS tests**
 
@@ -198,7 +229,7 @@ Expected: PASS, including the two new `bag_targets RLS isolation` cases.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add supabase/migrations/00000000000004_bag_targets.sql tests/integration/rls.test.ts
+git add supabase/migrations/00000000000005_bag_targets.sql tests/integration/rls.test.ts
 git commit -m "feat: add bag_targets table with per-user RLS
 
 Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
@@ -513,6 +544,7 @@ export function targetForBag(
   targets: BagTarget[],
   bag: { bean_name: string | null; roast_date: string | null }
 ): number | null {
+  if (!targets || targets.length === 0) return null;
   const key = bagKey(bag);
   const match = targets.find((t) => bagKey(t) === key);
   return match ? match.target_ratio : null;
@@ -562,7 +594,7 @@ Claude-Session: https://claude.ai/code/session_01RDzwbB7tmDu8igKYvqdShn"
 
 - [ ] **Step 1: Update existing tests to the options form and add the new cases**
 
-In `src/lib/shotView.test.ts`, change the four existing `bagState(shots, new Date('2026-09-04'))` calls to `bagState(shots, { now: new Date('2026-09-04') })`. Then add inside the `describe('bagState', ...)` block:
+In `src/lib/shotView.test.ts`, change every existing `bagState(shots, new Date('2026-09-04'))` call (there are five, around lines 79-111) to `bagState(shots, { now: new Date('2026-09-04') })`. Then add inside the `describe('bagState', ...)` block:
 
 ```ts
 it('is dialed when both recent shots sit within tolerance of the target', () => {
@@ -1041,13 +1073,16 @@ vi.mock('../lib/bagTargets', () => ({
 }));
 ```
 
-In the existing `beforeEach` (or at the top of each new test), default them:
+The file's `beforeEach` is just `vi.clearAllMocks()`; add the defaults after it:
 ```ts
-vi.mocked(listBagTargets).mockResolvedValue([]);
-vi.mocked(setBagTarget).mockResolvedValue(undefined);
+beforeEach(() => {
+  vi.clearAllMocks();
+  vi.mocked(listBagTargets).mockResolvedValue([]);
+  vi.mocked(setBagTarget).mockResolvedValue(undefined);
+});
 ```
 
-Add these tests (the file already has a `referenceShot` fixture with `bean_name: 'Kenya Nyeri AA'`, `roast_date: '2026-08-23'` - match its values):
+Add these tests (the file has a `referenceShot` fixture with `bean_name: 'Kenya Nyeri AA'`, `roast_date: '2026-08-23'`, and renders inline with `render(<MemoryRouter><NewShotPage /></MemoryRouter>)`):
 
 ```ts
 it('seeds the target control from the selected bag\'s stored target', async () => {
@@ -1064,7 +1099,11 @@ it('seeds the target control from the selected bag\'s stored target', async () =
     },
   ]);
 
-  renderNewShotPage(); // use the file's existing render helper
+  render(
+    <MemoryRouter>
+      <NewShotPage />
+    </MemoryRouter>
+  );
 
   await waitFor(() =>
     expect(screen.getByRole('button', { name: 'Target 1:2' })).toHaveAttribute('aria-pressed', 'true')
@@ -1076,7 +1115,11 @@ it('persists a changed target on save', async () => {
   vi.mocked(listBagTargets).mockResolvedValue([]);
   vi.mocked(createShot).mockResolvedValue({ ...referenceShot, id: 'shot-new' });
 
-  renderNewShotPage();
+  render(
+    <MemoryRouter>
+      <NewShotPage />
+    </MemoryRouter>
+  );
 
   await waitFor(() => screen.getByRole('button', { name: 'Target 1:3' }));
   fireEvent.click(screen.getByRole('button', { name: 'Target 1:3' }));
@@ -1095,7 +1138,11 @@ it('does not call setBagTarget when the target is unchanged', async () => {
   vi.mocked(listBagTargets).mockResolvedValue([]);
   vi.mocked(createShot).mockResolvedValue({ ...referenceShot, id: 'shot-new' });
 
-  renderNewShotPage();
+  render(
+    <MemoryRouter>
+      <NewShotPage />
+    </MemoryRouter>
+  );
 
   await waitFor(() => screen.getByRole('button', { name: 'Save shot' }));
   fireEvent.click(screen.getByRole('button', { name: 'Save shot' }));
@@ -1126,19 +1173,29 @@ import { groupShotsByBag, referenceShot as pickReferenceShot, sameBag, bagKey, t
 Add state near the other `useState` calls:
 ```ts
 const [bagTargets, setBagTargets] = useState<BagTarget[]>([]);
+const [bagTargetsLoaded, setBagTargetsLoaded] = useState(false);
 const [target, setTarget] = useState<number | null>(null);
 ```
 
-In the mount `useEffect`, after the existing `listShots()` chain, load targets (non-fatal):
+Load targets in their own mount effect, always flipping the loaded flag
+(a failed load falls back to `[]`, same as `listShots` failures elsewhere):
 ```ts
 useEffect(() => {
   listBagTargets()
     .then(setBagTargets)
-    .catch(() => setBagTargets([]));
+    .catch(() => setBagTargets([]))
+    .finally(() => setBagTargetsLoaded(true));
 }, []);
 ```
 
-Add an effect that seeds `target` whenever the resolved bag or the loaded targets change:
+Seed `target` from the resolved bag. The seed only runs once targets have
+loaded and re-runs only when the bag *identity* changes (the picker, or
+confirming a new bag), never when `bagTargets` itself settles - so a value
+the user picks is never clobbered by a late load. `bagForTarget` for a
+confirmed new bag reuses `targetForBag`: an identical `bean_name` +
+`roast_date` is the same bag everywhere else in the app (see
+`groupShotsByBag`), so resolving its stored target here is correct, not an
+auto-default.
 ```ts
 const bagForTarget = newBagConfirmed
   ? { bean_name: newBeanName || null, roast_date: newRoastDate || null }
@@ -1147,10 +1204,16 @@ const bagForTarget = newBagConfirmed
   : null;
 
 useEffect(() => {
+  if (!bagTargetsLoaded) return;
   setTarget(bagForTarget ? targetForBag(bagTargets, bagForTarget) : null);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [bagForTarget?.bean_name, bagForTarget?.roast_date, bagTargets]);
+}, [bagForTarget?.bean_name, bagForTarget?.roast_date, bagTargetsLoaded]);
 ```
+
+Gate the `ShotForm` render on `bagTargetsLoaded` too, so the target control
+never mounts before its seed value is known. Where the form is rendered,
+change `{formValues && !showNewBagFields && (` to
+`{formValues && !showNewBagFields && bagTargetsLoaded && (`.
 
 In `handleSubmit`, compute the bag ref once and persist the target after the shot exists, before the video upload:
 ```ts
@@ -1227,7 +1290,6 @@ In `src/pages/EditShotPage.test.tsx`, add:
 
 ```ts
 import { listBagTargets, setBagTarget } from '../lib/bagTargets';
-import { targetForBag } from '../lib/shotView';
 
 vi.mock('../lib/bagTargets', () => ({
   listBagTargets: vi.fn(),
@@ -1235,13 +1297,15 @@ vi.mock('../lib/bagTargets', () => ({
 }));
 ```
 
-Default them wherever the file sets up mocks (add a `beforeEach` if there is none):
+This file has no `beforeEach` today; add one (import `beforeEach` from `vitest`):
 ```ts
-vi.mocked(listBagTargets).mockResolvedValue([]);
-vi.mocked(setBagTarget).mockResolvedValue(undefined);
+beforeEach(() => {
+  vi.mocked(listBagTargets).mockResolvedValue([]);
+  vi.mocked(setBagTarget).mockResolvedValue(undefined);
+});
 ```
 
-Tests (the file's `shot` fixture has `bean_name: 'Kenya Nyeri AA'`, `roast_date: '2026-08-23'`):
+Tests. The file's `shot` fixture has `bean_name: 'Kenya Nyeri AA'`, `roast_date: '2026-08-23'`; the render helper is `renderAtShot(id)`:
 
 ```ts
 it('seeds the target from the shot\'s bag', async () => {
@@ -1258,7 +1322,7 @@ it('seeds the target from the shot\'s bag', async () => {
     },
   ]);
 
-  renderEditShotPage('shot-1'); // use the file's existing render approach
+  renderAtShot('shot-1');
 
   await waitFor(() =>
     expect(screen.getByRole('button', { name: 'Target 1:2.5' })).toHaveAttribute('aria-pressed', 'true')
@@ -1270,7 +1334,7 @@ it('writes the target on save when it changed', async () => {
   vi.mocked(updateShot).mockResolvedValue({ ...shot });
   vi.mocked(listBagTargets).mockResolvedValue([]);
 
-  renderEditShotPage('shot-1');
+  renderAtShot('shot-1');
 
   await waitFor(() => screen.getByRole('button', { name: 'Target 1:2' }));
   fireEvent.click(screen.getByRole('button', { name: 'Target 1:2' }));
@@ -1289,7 +1353,7 @@ it('does not write the target when it was not touched', async () => {
   vi.mocked(updateShot).mockResolvedValue({ ...shot });
   vi.mocked(listBagTargets).mockResolvedValue([]);
 
-  renderEditShotPage('shot-1');
+  renderAtShot('shot-1');
 
   await waitFor(() => screen.getByRole('button', { name: 'Save changes' }));
   fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
@@ -1320,6 +1384,7 @@ import { listBagTargets, setBagTarget, type BagTarget } from '../lib/bagTargets'
 Add state:
 ```ts
 const [bagTargets, setBagTargets] = useState<BagTarget[]>([]);
+const [bagTargetsLoaded, setBagTargetsLoaded] = useState(false);
 const [target, setTarget] = useState<number | null>(null);
 ```
 
@@ -1332,16 +1397,25 @@ useEffect(() => {
     .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load shot'));
   listBagTargets()
     .then(setBagTargets)
-    .catch(() => setBagTargets([]));
+    .catch(() => setBagTargets([]))
+    .finally(() => setBagTargetsLoaded(true));
 }, [id]);
 ```
 
-Seed `target` once the shot and targets are both available:
+Seed `target` once the shot and the targets are both available. Keyed on
+the shot's bag identity, not on `bagTargets`, so a late load never clobbers
+a value the user picked:
 ```ts
 useEffect(() => {
-  if (shot) setTarget(targetForBag(bagTargets, shot));
-}, [shot, bagTargets]);
+  if (!shot || !bagTargetsLoaded) return;
+  setTarget(targetForBag(bagTargets, shot));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [shot?.bean_name, shot?.roast_date, bagTargetsLoaded]);
 ```
+
+Gate the `ShotForm` render so the control never mounts before the seed is
+known: change the loading guard from `if (shot === undefined) return <p>Loading...</p>;`
+to `if (shot === undefined || !bagTargetsLoaded) return <p>Loading...</p>;`.
 
 In `handleSubmit`, after `updateShot`:
 ```ts
@@ -1415,12 +1489,16 @@ import { listBagTargets } from '../lib/bagTargets';
 vi.mock('../lib/bagTargets', () => ({ listBagTargets: vi.fn() }));
 ```
 
-Default it in the existing `beforeEach`:
+This file has no `beforeEach` and calls `mockAuth()` + `vi.mocked(listShots).mockResolvedValue(...)` inline in every test. Add one:
 ```ts
-vi.mocked(listBagTargets).mockResolvedValue([]);
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+// ...
+beforeEach(() => {
+  vi.mocked(listBagTargets).mockResolvedValue([]);
+});
 ```
 
-Add a test. The file's `baseShot` fixture is a single shot; build a two-shot bag that sits at 1:2.5 and assert it reads dialed only when a 1:2.5 target exists. Set `roast_date: null` on every fixture below (shots and the target row) so the roast-age `resting` / `past-peak` bookends - which run against the real `new Date()` and would otherwise make this test time-dependent - never apply, leaving the target / convergence branch as the thing under test:
+Add a test. The file's `baseShot` fixture is a single shot; build a two-shot bag that sits at 1:2.5 and assert it reads dialed only when a 1:2.5 target exists. Set `roast_date: null` on every fixture below (shots and the target row) so the roast-age `resting` / `past-peak` bookends - which run against the real `new Date()` and would otherwise make this test time-dependent - never apply, leaving the target / convergence branch as the thing under test. Each test still calls `mockAuth()` like the existing ones, and renders inline with `<MemoryRouter><ShotListPage /></MemoryRouter>`:
 
 ```ts
 it('shows Dialed when recent shots sit on the bag target', async () => {
@@ -1441,7 +1519,12 @@ it('shows Dialed when recent shots sit on the bag target', async () => {
     },
   ]);
 
-  renderShotListPage(); // the file's existing render approach
+  mockAuth();
+  render(
+    <MemoryRouter>
+      <ShotListPage />
+    </MemoryRouter>
+  );
 
   expect(await screen.findByText('Dialed')).toBeInTheDocument();
 });
@@ -1454,7 +1537,12 @@ it('falls back to convergence when the bag has no target', async () => {
   vi.mocked(listShots).mockResolvedValue(spread);
   vi.mocked(listBagTargets).mockResolvedValue([]);
 
-  renderShotListPage();
+  mockAuth();
+  render(
+    <MemoryRouter>
+      <ShotListPage />
+    </MemoryRouter>
+  );
 
   expect(await screen.findByText('Dialing')).toBeInTheDocument();
 });
@@ -1471,9 +1559,9 @@ Expected: FAIL - `listBagTargets` mock not wired / bag shows `Dialing` because t
 
 In `src/pages/ShotListPage.tsx`:
 
-Extend the imports:
+Extend the imports (keep `bagLabel`, used by the bag heading):
 ```ts
-import { groupShotsByBag, bagState, ratio, daysSinceRoast, deltas, bagKey, targetForBag, type Bag } from '../lib/shotView';
+import { groupShotsByBag, bagState, bagLabel, ratio, daysSinceRoast, deltas, bagKey, targetForBag, type Bag } from '../lib/shotView';
 import { listBagTargets, type BagTarget } from '../lib/bagTargets';
 ```
 
@@ -1643,7 +1731,11 @@ After the `shot === null` guard, compute the target:
 const target = targetForBag(bagTargets, shot);
 ```
 
-In the header block, right after the `<div className="flex items-baseline">` that holds `RatioFigure` and `PullTimeFigure`, add:
+In the `<div style={{ padding: 'var(--space-4) var(--space-4) var(--space-3)' }}>`
+block (the one holding the bean/age/timestamp line and the
+`<div className="flex items-baseline" style={{ gap: 'var(--space-4)' }}>`
+with `RatioFigure` / `PullTimeFigure`), add this as the last child, right
+after that flex row closes:
 ```tsx
 {target != null && (
   <div
@@ -1660,6 +1752,10 @@ In the header block, right after the `<div className="flex items-baseline">` tha
   </div>
 )}
 ```
+
+`shot` here is the non-null `Shot` (past the `shot === null` guard), and
+`targetForBag` / `ratioDelta` both accept a `{ bean_name, roast_date }` /
+`{ dose_g, yield_g }` shape, so passing `shot` directly is fine.
 
 - [ ] **Step 4: Run to verify they pass**
 
@@ -1698,55 +1794,66 @@ import { listBagTargets } from '../lib/bagTargets';
 vi.mock('../lib/bagTargets', () => ({ listBagTargets: vi.fn() }));
 ```
 
-Default it wherever mocks are set:
+Default it in a `beforeEach` (see the "Mocking `listBagTargets`" note - this
+file has none today, so add one):
 ```ts
-vi.mocked(listBagTargets).mockResolvedValue([]);
+beforeEach(() => {
+  vi.mocked(listBagTargets).mockResolvedValue([]);
+});
 ```
 
-Tests (the file already builds shot arrays and mocks `listShots`):
+Tests (the file's shot fixture is the array `shots`; build local arrays
+off one of its entries):
 
 ```ts
 it('draws the goal line and label when the selected bag has a target', async () => {
-  const shots = [
-    { ...baseShot, id: 's2', dose_g: 18, yield_g: 40, pull_time_s: 30 },
-    { ...baseShot, id: 's1', dose_g: 18, yield_g: 38, pull_time_s: 28 },
+  const bagShots = [
+    { ...shots[0], id: 's2', dose_g: 18, yield_g: 40, pull_time_s: 30 },
+    { ...shots[0], id: 's1', dose_g: 18, yield_g: 38, pull_time_s: 28 },
   ];
-  vi.mocked(listShots).mockResolvedValue(shots);
+  vi.mocked(listShots).mockResolvedValue(bagShots);
   vi.mocked(listBagTargets).mockResolvedValue([
     {
       id: 't1',
       user_id: 'user-1',
-      bean_name: baseShot.bean_name,
-      roast_date: baseShot.roast_date,
+      bean_name: shots[0].bean_name,
+      roast_date: shots[0].roast_date,
       target_ratio: 2.2,
       created_at: '2026-09-04T00:00:00Z',
       updated_at: '2026-09-04T00:00:00Z',
     },
   ]);
 
-  const { container } = renderTrendsPage();
+  const { container } = render(
+    <MemoryRouter>
+      <TrendsPage />
+    </MemoryRouter>
+  );
 
-  await waitFor(() => expect(container.querySelector('text')).toBeTruthy());
-  expect(container.textContent).toContain('1:2.2');
+  // wait for the target-specific label, not just any <text>, so the assert
+  // does not race the bagTargets load
+  await waitFor(() => expect(container.textContent).toContain('1:2.2'));
   expect(container.querySelector('line[stroke-dasharray]')).toBeTruthy();
 });
 
 it('draws no goal line when the bag has no target', async () => {
-  const shots = [
-    { ...baseShot, id: 's2', dose_g: 18, yield_g: 40, pull_time_s: 30 },
-    { ...baseShot, id: 's1', dose_g: 18, yield_g: 38, pull_time_s: 28 },
+  const bagShots = [
+    { ...shots[0], id: 's2', dose_g: 18, yield_g: 40, pull_time_s: 30 },
+    { ...shots[0], id: 's1', dose_g: 18, yield_g: 38, pull_time_s: 28 },
   ];
-  vi.mocked(listShots).mockResolvedValue(shots);
+  vi.mocked(listShots).mockResolvedValue(bagShots);
   vi.mocked(listBagTargets).mockResolvedValue([]);
 
-  const { container } = renderTrendsPage();
+  const { container } = render(
+    <MemoryRouter>
+      <TrendsPage />
+    </MemoryRouter>
+  );
 
   await waitFor(() => expect(container.querySelector('svg')).toBeTruthy());
   expect(container.querySelector('line[stroke-dasharray]')).toBeNull();
 });
 ```
-
-Use whatever `baseShot` / render helper the file already defines; if there is no `baseShot`, reuse the shape from an existing test in the file.
 
 - [ ] **Step 2: Run to verify they fail**
 
@@ -1757,40 +1864,60 @@ Expected: FAIL - no dashed line / no `1:2.2` text.
 
 In `src/pages/TrendsPage.tsx`:
 
-Extend imports:
+Extend imports (keep `bagLabel`, which the header still uses):
 ```ts
-import { groupShotsByBag, ratio, sameBag, targetForBag, type Bag } from '../lib/shotView';
+import { groupShotsByBag, ratio, sameBag, bagLabel, targetForBag, type Bag } from '../lib/shotView';
 import { listBagTargets, type BagTarget } from '../lib/bagTargets';
 ```
 
-Change `RatioOverTimeChart`:
+`RatioOverTimeChart` already builds its scales through `niceDomain` (from the
+trends-readability work) and draws left-edge ratio ticks. Do not rewrite it -
+thread a `targetRatio` prop through, fold the target into the y-domain input
+so the goal line cannot fall off-canvas, and add the dashed line plus a
+right-aligned label. Everything else in the function stays as it is:
+
 ```tsx
-function RatioOverTimeChart({ shots, targetRatio }: { shots: Shot[]; targetRatio: number | null }) {
+function RatioOverTimeChart({
+  shots,
+  targetRatio,
+}: {
+  shots: Shot[];
+  targetRatio: number | null;
+}) {
   const times = shots.map((s) => s.pull_time_s);
   const ratios = shots.map((s) => ratio(s));
-  const ratioDomain = targetRatio != null ? [...ratios, targetRatio] : ratios;
-  const x = scaleLinear(Math.min(...times), Math.max(...times), 20, 320);
-  const y = scaleLinear(Math.min(...ratioDomain), Math.max(...ratioDomain), 170, 20);
+
+  const [xLo, xHi] = niceDomain(times, 4);
+  const [yLo, yHi] = niceDomain(targetRatio != null ? [...ratios, targetRatio] : ratios, 0.3);
+  const x = scaleLinear(xLo, xHi, 40, 328);
+  const y = scaleLinear(yLo, yHi, 158, 18);
+
+  const minTime = Math.round(Math.min(...times));
+  const maxTime = Math.round(Math.max(...times));
+  const minRatio = Math.min(...ratios);
+  const maxRatio = Math.max(...ratios);
 
   return (
-    <svg viewBox="0 0 340 190" width="100%">
-      <line x1="20" y1="170" x2="320" y2="170" stroke="var(--color-divider)" />
-      <line x1="20" y1="20" x2="20" y2="170" stroke="var(--color-divider)" />
+    <svg viewBox="0 0 340 190" width="100%" style={{ overflow: 'visible' }}>
+      <line x1="40" y1="158" x2="328" y2="158" stroke="var(--color-divider)" />
+      <line x1="40" y1="18" x2="40" y2="158" stroke="var(--color-divider)" />
+
       {targetRatio != null && (
         <>
           <line
-            x1="20"
+            x1="40"
             y1={y(targetRatio)}
-            x2="320"
+            x2="328"
             y2={y(targetRatio)}
             stroke="var(--color-accent-300)"
             strokeDasharray="4 3"
           />
-          <text x="24" y={y(targetRatio) - 4} fontSize="10" fill="var(--color-neutral-600)">
+          <text className="num" x="328" y={y(targetRatio) - 4} textAnchor="end" style={TICK_STYLE}>
             1:{targetRatio.toFixed(1)}
           </text>
         </>
       )}
+
       {shots.map((shot, i) => (
         <circle
           key={shot.id}
@@ -1801,12 +1928,38 @@ function RatioOverTimeChart({ shots, targetRatio }: { shots: Shot[]; targetRatio
           stroke={i === 0 ? 'none' : 'var(--color-neutral-600)'}
         />
       ))}
+
+      <text className="num" x="4" y="16" style={TICK_STYLE}>
+        {maxRatio.toFixed(1)}
+      </text>
+      <text x="4" y="30" style={{ ...TICK_STYLE, fontSize: '8.5px', letterSpacing: '0.08em' }}>
+        RATIO
+      </text>
+      <text className="num" x="4" y="160" style={TICK_STYLE}>
+        {minRatio.toFixed(1)}
+      </text>
+      <text className="num" x="40" y="176" style={TICK_STYLE}>
+        {minTime}s
+      </text>
+      <text className="num" x="328" y="176" textAnchor="end" style={TICK_STYLE}>
+        {maxTime}s
+      </text>
     </svg>
   );
 }
 ```
 
-In `TrendsPage`, add state and load:
+`BagTrends` passes the prop through - it already receives `bag`, so give it
+the resolved target too:
+```tsx
+function BagTrends({ bag, targetRatio }: { bag: Bag; targetRatio: number | null }) {
+  // ...unchanged...
+  <RatioOverTimeChart shots={shots} targetRatio={targetRatio} />
+  // ...unchanged...
+}
+```
+
+In `TrendsPage`, add state and load it alongside the existing `listShots`:
 ```ts
 const [bagTargets, setBagTargets] = useState<BagTarget[]>([]);
 
@@ -1822,12 +1975,9 @@ useEffect(() => {
 }, []);
 ```
 
-Resolve the target and pass it in the render, where `RatioOverTimeChart` is used:
+Pass the resolved target where `BagTrends` is rendered:
 ```tsx
-<RatioOverTimeChart
-  shots={selectedBag.shots}
-  targetRatio={targetForBag(bagTargets, selectedBag)}
-/>
+<BagTrends bag={selectedBag} targetRatio={targetForBag(bagTargets, selectedBag)} />
 ```
 
 - [ ] **Step 4: Run to verify they pass**
@@ -1912,7 +2062,7 @@ Claude-Session: https://claude.ai/code/session_01RDzwbB7tmDu8igKYvqdShn"
 
 ```bash
 npx supabase start
-npx supabase db reset
+npx supabase migration up
 npx vitest run
 ```
 Expected: all tests pass.
@@ -1937,4 +2087,26 @@ Expected: `tsc` clean, Vite build succeeds.
 - **Spec coverage:** table + RLS (Task 1), lib (Task 2), `targetForBag` / `ratioDelta` (Task 3), `bagState` branch (Task 4), control (Task 5), form wiring + live delta (Task 6), persistence from New and Edit (Tasks 7, 8), shot list chip (Task 9), detail readout (Task 10), trends goal line (Task 11), doc updates (Task 12). Spec section 5's integration cases are in Task 1; the spec's "unit, mocked supabase" framing for `bagTargets` is implemented instead as an integration test in Task 2, matching the existing `src/lib/shots.test.ts` pattern (the codebase has no mocked-supabase unit precedent).
 - **No Trends editing control** in this plan, matching the spec's non-goals.
 - **Type consistency:** `BagTarget`, `BagRef` shape, `setBagTarget(bag, ratio | null)`, `listBagTargets()`, `targetForBag(targets, bag)`, `ratioDelta(shot, target)`, and `bagState(shots, { targetRatio, now })` are used with the same names and signatures across Tasks 2 through 11.
-- **Migration number** `00000000000004` may collide with the unbuilt Barista Assistant migration; Task 1 says to use `00000000000005` if that one lands first.
+- **Migration number** is `00000000000005`; slot 4 is the shipped `shot_analyses` migration.
+
+## Review notes (2026-09-10)
+
+Checked against the current tree. Fixed in place: migration number 4 -> 5;
+Task 11 `RatioOverTimeChart` reconciled with the shipped `niceDomain`-based
+chart (the earlier snippet rewrote it and dropped the padding and axis
+ticks); Task 9 import kept `bagLabel`; `targetForBag` guards a nullish
+list; added the "Mocking `listBagTargets`" and "Test helper names"
+subsections under Running tests.
+
+Resolved 2026-09-10:
+
+1. **Seed race.** Tasks 7 and 8 now add a `bagTargetsLoaded` flag, gate the
+   `ShotForm` render on it, and key the seed effect on the bag identity
+   rather than on `bagTargets`. The control never mounts before its seed
+   value is known, so a late load cannot clobber a user's pick.
+2. **"Start a new bag" collision.** Kept. An identical `bean_name` +
+   `roast_date` is the same bag everywhere else in the app
+   (`groupShotsByBag`), so resolving its stored target is correct, not an
+   auto-default. Noted in Task 7.
+3. **`db reset` vs `migration up`.** Switched to `migration up` throughout,
+   matching commit 89d3de1.
